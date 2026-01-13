@@ -1,0 +1,222 @@
+mixed-port: 7890 
+allow-lan: true 
+bind-address: '*' 
+mode: rule 
+log-level: info 
+ipv6: true
+unified-delay: true
+tcp-concurrent: true
+external-controller: 0.0.0.0:9090
+secret: ""    
+
+external-ui: /data/adb/modules/Maodie-Launcher/maodie/config/webui
+external-ui-url: /ui
+
+tun:
+  enable: true
+  stack: system 
+  device: utun 
+  auto-route: true 
+  auto-detect-interface: true 
+  dns-hijack:
+    - any:53
+  mtu: 9000 
+
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - '*.lan'
+    - '*.local'
+    - 'stun.*'
+  default-nameserver:
+    - 223.6.6.6
+    - 119.29.29.29
+  direct-nameserver:
+    - 223.6.6.6
+    - 119.29.29.29
+  direct-nameserver-follow-policy: true
+  nameserver:
+    - tls://dns.google
+    - tls://dns.cloudflare.com
+  proxy-server-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver-policy:
+    "geosite:cn,private":
+      - tls://dns.alidns.com
+      - tls://dot.pub
+    "geosite:geolocation-!cn":
+      - tls://dns.google
+      - tls://dns.cloudflare.com
+
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+
+p: &p
+  {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 900}}
+
+# url 里填写自己的订阅,名称不能重复
+proxy-providers:
+  provider1:
+    <<: *p
+    url: "请填写您自己的机场地址
+    interval: 21600
+  
+  provider2:
+    <<: *p
+    url: "请填写您自己的机场地址"
+    path: ./proxy_providers/subscribe2.yaml
+    interval: 86400
+  
+  provider3:
+    <<: *p
+    url: "请填写您自己的机场地址"
+    path: ./proxy_providers/subscribe3.yaml
+    interval: 86400
+
+proxy-groups:
+  - name: 默认
+    type: select
+    proxies: [自动选择, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Airport.png"
+
+  - name: Google
+    type: select
+    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Google_Search.png"
+
+  - name: Telegram
+    type: select
+    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Telegram.png"
+
+  - name: Github
+    type: select
+    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Server.png"
+
+  - name: Microsoft
+    type: select
+    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Microsoft.png"
+
+  - name: 其他
+    type: select
+    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Final.png"
+
+  # 地区分组
+  - name: 香港
+    type: url-test
+    include-all: true
+    filter: "(?i)港|hk|hongkong|hong kong"
+    tolerance: 50
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/HK.png"
+
+  - name: 日本
+    type: url-test
+    include-all: true
+    filter: "(?i)(?=.*(?:日本|jp|japan))^(?!.*(?:HY|RLY)).*"
+    tolerance: 50
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/JP.png"
+
+  - name: 美国
+    type: url-test
+    include-all: true
+    filter: "(?i)(?=.*(?:美国|us))^(?!.*(?:HY|RLY)).*"
+    tolerance: 50
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/US.png"
+
+  - name: 全部节点
+    type: select
+    include-all: true
+    filter: "^(?!.*(剩余|到期|官网|重置)).*" # 过滤掉非节点信息
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Server.png"
+
+  - name: 自动选择
+    type: url-test
+    include-all: true
+    url: "https://cp.cloudflare.com"
+    interval: 300
+    tolerance: 50
+    filter: "^(?!.*(剩余|到期|官网|重置)).*" # 过滤掉非节点信息
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Auto.png"
+
+
+# 分流规则
+rules:
+  # - DST-PORT,53,DNS_Hijack
+  
+  # 优先匹配内置规则，速度更快
+  - RULE-SET,ad,REJECT
+  - RULE-SET,private_ip,DIRECT,no-resolve
+  - RULE-SET,cn_domain,DIRECT
+  - RULE-SET,cn_ip,DIRECT,no-resolve
+  
+  - RULE-SET,github_domain,Github
+  - RULE-SET,microsoft_domain,Microsoft
+  - RULE-SET,google_domain,Google
+  - RULE-SET,telegram_domain,Telegram
+  - RULE-SET,geolocation-!cn,其他
+  - RULE-SET,google_ip,Google
+  - RULE-SET,telegram_ip,Telegram
+  
+  - MATCH,其他
+
+# 规则集定义锚点
+rule-anchor:
+  ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
+  domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
+
+rule-providers:
+  private_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"
+  cn_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+  github_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"
+  microsoft_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/microsoft.mrs"
+  google_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.mrs"
+  telegram_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs"
+  geolocation-!cn:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.mrs"
+  ad:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash.mrs"
+  private_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"
+  cn_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
+  google_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.mrs"
+  telegram_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.mrs"
