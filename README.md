@@ -1,15 +1,27 @@
 # 耄耋启动器 (Maodie-Launcher)
 ## 简介
 
-<img width="250" height="242" align="right" alt="image" src="https://github.com/user-attachments/assets/1cca2611-5f32-44ed-87e5-1b27450fc20c" />
+# 耄耋启动器 (Maodie-Launcher)
 
-**耄耋启动器** 是一个基于可爱猫咪耄耋的Magisk/Ksu模块，可以适配Tproxy被狂暴鸿儒后没办法正常运作的HyperOS3系统。
+## 简介
 
-本文档仍在修订中，欢迎 PR (Pull Requests)。
+<table>
+  <tr>
+    <td width="65%" valign="top">
+      <b>耄耋启动器</b> 是一个基于可爱猫咪耄耋的Magisk/Ksu模块，可以适配Tproxy被狂暴鸿儒后没办法正常运作的HyperOS3系统。
+      <br/><br/>
+      本文档仍在修订中，欢迎 PR (Pull Requests)。
+    </td>
+    <td width="35%" valign="top">
+      <img src="https://github.com/user-attachments/assets/1cca2611-5f32-44ed-87e5-1b27450fc20c" width="100%" alt="image" />
+    </td>
+  </tr>
+</table>
+
 ## ⚠️ 使用前须知
 使用 耄耋启动器 前，请悉知：
 
-上游关系：本 README 主要介绍 耄耋启动器 的独有特性（如系统栈调优、防杀机制），关于 Mihomo 的通用配置特性，请查看虚空终端。
+上游关系：本 README 主要介绍 耄耋启动器 的独有特性，关于 Mihomo 的通用配置特性，请查看虚空终端Wiki。
 
 兼容性：本模块基于最新的 Android 特性开发（支持 KernelSU/APatch），如果您的系统低于 Android 10，建议升级以获得最佳体验。
 
