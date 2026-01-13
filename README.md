@@ -5,13 +5,13 @@
 
 <table>
   <tr>
-    <td width="65%" valign="top">
+    <td width="60%" valign="middle">
       <b>耄耋启动器</b> 是一个基于可爱猫咪耄耋的Magisk/Ksu模块，可以适配Tproxy被狂暴鸿儒后没办法正常运作的HyperOS3系统。
       <br/><br/>
       本文档仍在修订中，欢迎 PR (Pull Requests)。
     </td>
-    <td width="35%" valign="top">
-      <img src="https://github.com/user-attachments/assets/1cca2611-5f32-44ed-87e5-1b27450fc20c" width="100%" alt="image" />
+    <td width="40%" valign="middle" align="center">
+      <img src="https://github.com/user-attachments/assets/1cca2611-5f32-44ed-87e5-1b27450fc20c" width="100%" alt="image" style="max-width: 250px;" />
     </td>
   </tr>
 </table>
