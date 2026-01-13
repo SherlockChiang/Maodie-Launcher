@@ -23,8 +23,8 @@
 
 兼容性：本模块基于最新的 Android 特性开发（支持 KernelSU/APatch），如果您的系统低于 Android 10，建议升级以获得最佳体验。
 
-## ✨ 独有特性 (Features)
-⚡ 现代网络栈 (System Stack)： 抛弃低效的 gVisor，默认启用 system 协议栈配合 auto-route，并自动注入 sysctl 内核参数尽可能跑满带宽。
+## ✨ 独有特性
+⚡ 现代网络栈： 抛弃低效的 gVisor，默认启用 system 协议栈配合 auto-route，并自动注入 sysctl 内核参数尽可能跑满带宽。
 
 🔌 KSU 联动： 无需重启手机。在 KernelSU/Magisk 管理器中点击按钮关闭模块，代理即刻停止；点击开启后，服务就会恢复。
 
