@@ -1,5 +1,3 @@
-# 耄耋启动器 (Maodie-Launcher)
-## 简介
 
 # 耄耋启动器 (Maodie-Launcher)
 
