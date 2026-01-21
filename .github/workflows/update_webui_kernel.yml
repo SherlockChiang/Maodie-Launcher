@@ -171,38 +171,43 @@ jobs:
       # ==========================================
       # 步骤 4: 打包并签名 (扩展名伪装版)
       # ==========================================
+      # ==========================================
+      # 步骤 4: 打包并签名 (SignApk 版)
+      # ==========================================
       - name: Zip and Sign Module
         if: steps.commit.outputs.release == 'true'
         run: |
           mkdir -p maodie/run
           
-          # 1. 定义文件名 (注意：中间过程使用 .apk 后缀欺骗签名工具)
-          UNSIGNED_APK="unsigned.apk"
+          # 1. 定义文件名
+          UNSIGNED_ZIP="unsigned.zip"
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
           
-          # 2. 打包 (直接打成 apk 后缀)
+          # 2. 打包 (先打成 unsigned.zip)
           echo "📦 正在打包..."
-          zip -r "$UNSIGNED_APK" META-INF maodie customize.sh module.prop service.sh uninstall.sh
+          zip -r "$UNSIGNED_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
           
-          # 3. 下载签名工具
-          echo "fw 下载签名工具..."
-          wget -q https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O signer.jar
+          # 3. 下载签名工具 (signapk + 测试密钥)
+          # 使用传统的 signapk，它专门用于给 update.zip 或 Magisk 模块签名，不检查 AndroidManifest
+          echo "📥 下载 signapk 工具..."
+          wget -q https://raw.githubusercontent.com/tehcneko/SignApk-jar-and-pem-pk8-files/master/signapk.jar
+          wget -q https://raw.githubusercontent.com/tehcneko/SignApk-jar-and-pem-pk8-files/master/testkey.x509.pem
+          wget -q https://raw.githubusercontent.com/tehcneko/SignApk-jar-and-pem-pk8-files/master/testkey.pk8
           
-          # 4. 执行签名 (现在它是一个 apk，工具会欣然接受)
+          # 4. 执行签名
+          # 语法: java -jar signapk.jar [公钥] [私钥] [输入文件] [输出文件]
           echo "✍️ 正在签名..."
-          java -jar signer.jar --apks "$UNSIGNED_APK" --out .
+          java -jar signapk.jar testkey.x509.pem testkey.pk8 "$UNSIGNED_ZIP" "$FINAL_ZIP"
           
-          # 5. 重命名回 ZIP
-          # UberSigner 生成的文件名规则：原名-aligned-debugSigned.apk
-          SIGNED_APK="unsigned-aligned-debugSigned.apk"
-          
-          if [ -f "$SIGNED_APK" ]; then
-            mv "$SIGNED_APK" "$FINAL_ZIP"
-            echo "✅ 签名完成并还原为ZIP: $FINAL_ZIP"
+          # 5. 检查结果
+          if [ -f "$FINAL_ZIP" ]; then
+            echo "✅ 签名完成: $FINAL_ZIP"
             ls -lh "$FINAL_ZIP"
+            
+            # 清理临时文件
+            rm -f "$UNSIGNED_ZIP" signapk.jar testkey.x509.pem testkey.pk8
           else
             echo "❌ 错误：签名失败，输出文件未生成！"
-            ls -la
             exit 1
           fi
           
