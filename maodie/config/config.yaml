@@ -28,10 +28,22 @@ dns:
   ipv6: true
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
+  fake-ip-filter-mode: rule
   fake-ip-filter:
-    - '*.lan'
-    - '*.local'
-    - 'stun.*'
+    # 局域网与特殊协议 (必须 Real-IP)
+    - DOMAIN-SUFFIX,lan,real-ip
+    - DOMAIN-SUFFIX,local,real-ip
+    - DOMAIN-KEYWORD,stun,real-ip
+    - DOMAIN-KEYWORD,udp,real-ip
+    
+    # 所有国内域名 -> 强制 Real-IP
+    - GEOSITE,cn,real-ip
+    - GEOSITE,private,real-ip
+    
+    # 国外域名与默认策略
+    - GEOSITE,geolocation-!cn,fake-ip
+    - MATCH,fake-ip
+
   default-nameserver:
     - 223.6.6.6
     - 119.29.29.29
