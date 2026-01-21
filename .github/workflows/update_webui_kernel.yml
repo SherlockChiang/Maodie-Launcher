@@ -169,10 +169,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       # ==========================================
-      # 步骤 4: 打包并签名 (扩展名伪装版)
-      # ==========================================
-      # ==========================================
-      # 步骤 4: 打包并签名 (SignApk 版)
+      # 步骤 4: 打包并签名 (Jarsigner 版 - 最稳定)
       # ==========================================
       - name: Zip and Sign Module
         if: steps.commit.outputs.release == 'true'
@@ -180,34 +177,45 @@ jobs:
           mkdir -p maodie/run
           
           # 1. 定义文件名
-          UNSIGNED_ZIP="unsigned.zip"
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
           
-          # 2. 打包 (先打成 unsigned.zip)
+          # 2. 打包 (直接打成最终文件，稍后直接对它签名)
           echo "📦 正在打包..."
-          zip -r "$UNSIGNED_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
+          zip -r "$FINAL_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
           
-          # 3. 下载签名工具 (signapk + 测试密钥)
-          # 使用传统的 signapk，它专门用于给 update.zip 或 Magisk 模块签名，不检查 AndroidManifest
-          echo "📥 下载 signapk 工具..."
-          wget -q https://raw.githubusercontent.com/tehcneko/SignApk-jar-and-pem-pk8-files/master/signapk.jar
-          wget -q https://raw.githubusercontent.com/tehcneko/SignApk-jar-and-pem-pk8-files/master/testkey.x509.pem
-          wget -q https://raw.githubusercontent.com/tehcneko/SignApk-jar-and-pem-pk8-files/master/testkey.pk8
+          # 3. 生成临时密钥 (Keytool 是 Java 内置工具)
+          echo "🔑 生成临时签名证书..."
+          keytool -genkeypair \
+            -alias android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Maodie, OU=Launcher, O=Android, L=Unknown, S=Unknown, C=CN" \
+            -keystore debug.keystore \
+            -storepass android \
+            -keypass android
           
-          # 4. 执行签名
-          # 语法: java -jar signapk.jar [公钥] [私钥] [输入文件] [输出文件]
+          # 4. 执行签名 (Jarsigner 是 Java 内置工具)
+          # 使用 SHA1 算法以保证最大兼容性 (Magisk/KSU 认这个)
           echo "✍️ 正在签名..."
-          java -jar signapk.jar testkey.x509.pem testkey.pk8 "$UNSIGNED_ZIP" "$FINAL_ZIP"
+          jarsigner \
+            -verbose \
+            -sigalg SHA1withRSA \
+            -digestalg SHA1 \
+            -keystore debug.keystore \
+            -storepass android \
+            "$FINAL_ZIP" \
+            android
           
-          # 5. 检查结果
+          # 5. 验证文件
           if [ -f "$FINAL_ZIP" ]; then
             echo "✅ 签名完成: $FINAL_ZIP"
             ls -lh "$FINAL_ZIP"
             
-            # 清理临时文件
-            rm -f "$UNSIGNED_ZIP" signapk.jar testkey.x509.pem testkey.pk8
+            # 清理密钥文件
+            rm debug.keystore
           else
-            echo "❌ 错误：签名失败，输出文件未生成！"
+            echo "❌ 错误：文件未生成！"
             exit 1
           fi
           
