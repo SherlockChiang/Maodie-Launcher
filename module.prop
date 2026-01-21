@@ -4,3 +4,4 @@ version=v20260121-dbfe544
 versionCode=20260121
 author=Maodie
 description=哈!
+updateJson=https://raw.githubusercontent.com/SherlockChiang/Maodie-Launcher/main/update.json
