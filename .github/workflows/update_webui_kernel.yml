@@ -169,7 +169,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       # ==========================================
-      # 步骤 4: 打包并签名
+      # 步骤 4: 打包并签名 (修复版)
       # ==========================================
       - name: Zip and Sign Module
         if: steps.commit.outputs.release == 'true'
@@ -180,25 +180,43 @@ jobs:
           UNSIGNED_ZIP="unsigned.zip"
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
           
-          # 2. 打包 (先打成 unsigned.zip)
+          # 2. 打包
+          echo "📦 正在打包..."
           zip -r "$UNSIGNED_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
           
-          # 3. 下载签名工具 (Uber APK Signer)
-          # 这是一个通用的签名工具，也可以用来签 Magisk 模块
+          # 【关键调试】检查文件是否存在以及大小
+          echo "🔍 检查文件状态..."
+          if [ -f "$UNSIGNED_ZIP" ]; then
+            ls -lh "$UNSIGNED_ZIP"
+          else
+            echo "❌ 错误：zip 命令似乎未能生成文件！"
+            exit 1
+          fi
+          
+          # 3. 下载签名工具
+          echo "fw 下载签名工具..."
           wget -q https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O signer.jar
           
-          # 4. 执行签名
-          # --apks: 输入文件
-          # --out: 输出目录
-          # --overwrite: 覆盖同名文件
-          java -jar signer.jar --apks "$UNSIGNED_ZIP" --out .
+          # 4. 执行签名 (使用 $(pwd) 获取绝对路径，防止 Java 找不到)
+          echo "✍️ 正在签名..."
+          java -jar signer.jar --apks "$(pwd)/$UNSIGNED_ZIP" --out .
           
-          # 5. 重命名签好名的文件 (UberSigner 会自动加上 -aligned-debugSigned 后缀，我们需要改回来)
-          mv "unsigned-aligned-debugSigned.zip" "$FINAL_ZIP"
+          # 5. 重命名签好名的文件
+          # UberSigner 生成的文件名固定为：原名-aligned-debugSigned.zip
+          SIGNED_OUTPUT="unsigned-aligned-debugSigned.zip"
+          
+          if [ -f "$SIGNED_OUTPUT" ]; then
+            mv "$SIGNED_OUTPUT" "$FINAL_ZIP"
+            echo "✅ 签名完成，最终文件: $FINAL_ZIP"
+          else
+            echo "❌ 错误：签名后的文件未生成！"
+            ls -la
+            exit 1
+          fi
           
           # 6. 导出文件名供发布使用
           echo "zip_name=$FINAL_ZIP" >> $GITHUB_ENV
-
+          
       # ==========================================
       # 步骤 5: 发布 Release
       # ==========================================
