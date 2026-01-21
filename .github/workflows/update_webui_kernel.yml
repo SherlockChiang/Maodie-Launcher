@@ -180,7 +180,7 @@ jobs:
           
           # 2. 打包 (直接打成最终文件，稍后直接对它签名)
           echo "📦 正在打包..."
-          zip -r "$FINAL_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh update.json
+          zip -r "$FINAL_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
           
           # 3. 生成临时密钥 (Keytool 是 Java 内置工具)
           echo "🔑 生成临时签名证书..."
