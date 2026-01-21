@@ -82,6 +82,10 @@ sniffer:
 p: &p
   {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 900}}
 
+geodata-mode: true
+geox-url:
+  geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+
 # url 里填写自己的订阅,名称不能重复
 proxy-providers:
   provider1:
