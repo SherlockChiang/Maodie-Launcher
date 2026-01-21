@@ -1,0 +1,173 @@
+name: Auto Update Components (WebUI & Kernel)
+
+on:
+  schedule:
+    # 每天北京时间早上 8:00 (UTC 0:00) 检查
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==========================================
+      # 步骤 1: 处理 MetaCubeXD (WebUI)
+      # ==========================================
+      - name: Update MetaCubeXD
+        id: webui
+        run: |
+          echo "🔍 检查 MetaCubeXD..."
+          API_URL="https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest"
+          LATEST_DATA=$(curl -s $API_URL)
+          
+          # 1. 获取版本
+          VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "WebUI 最新版本: $VERSION"
+          echo "ver=$VERSION" >> $GITHUB_OUTPUT
+          
+          # 2. 获取链接 (修复空格问题)
+          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'compressed-dist.tgz' | cut -d '"' -f 4)
+          
+          # 3. 下载并覆盖
+          echo "⬇️ 下载: $DOWNLOAD_URL"
+          echo "$DOWNLOAD_URL" | xargs wget -q -O webui.tgz
+          
+          mkdir -p temp_webui
+          tar -xzf webui.tgz -C temp_webui
+          
+          TARGET_DIR="maodie/config/webui"
+          mkdir -p "$TARGET_DIR"
+          rm -rf "$TARGET_DIR"/*
+          cp -r temp_webui/* "$TARGET_DIR"/
+          
+          # 清理
+          rm -rf temp_webui webui.tgz
+
+      # ==========================================
+      # 步骤 2: 处理 Mihomo (Kernel)
+      # ==========================================
+      - name: Update Mihomo Kernel
+        id: kernel
+        run: |
+          echo "🔍 检查 Mihomo Kernel..."
+          API_URL="https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
+          LATEST_DATA=$(curl -s $API_URL)
+          
+          # 1. 获取版本
+          VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "Mihomo 最新版本: $VERSION"
+          echo "ver=$VERSION" >> $GITHUB_OUTPUT
+          
+          # 2. 获取链接 (锁定 android-arm64, 修复空格问题)
+          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'android-arm64' | grep '.gz"' | cut -d '"' -f 4)
+          
+          # 3. 下载并覆盖
+          echo "⬇️ 下载: $DOWNLOAD_URL"
+          echo "$DOWNLOAD_URL" | xargs wget -q -O Mihomo.gz
+          
+          gzip -d Mihomo.gz
+          chmod +x Mihomo
+          
+          TARGET_DIR="maodie/kernel"
+          mkdir -p "$TARGET_DIR"
+          mv -f Mihomo "$TARGET_DIR/Mihomo"
+
+      # ==========================================
+      # 步骤 3: 统一提交与判断
+      # ==========================================
+      - name: Check Changes & Commit
+        id: commit
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # 添加所有变动
+          git add .
+          
+          # 初始化变量
+          WEBUI_VER="${{ steps.webui.outputs.ver }}"
+          KERNEL_VER="${{ steps.kernel.outputs.ver }}"
+          TAG_NAME=""
+          COMMIT_MSG=""
+          SHOULD_RELEASE="false"
+          
+          # 检查具体是哪个文件变了
+          # --name-only 列出变动的文件名
+          CHANGED_FILES=$(git diff --staged --name-only)
+          
+          IS_WEBUI_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/config/webui" || true)
+          IS_KERNEL_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/kernel/Mihomo" || true)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "✅ 所有组件均为最新，无须更新。"
+            echo "release=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "release=true" >> $GITHUB_OUTPUT
+          
+          # 逻辑分支：决定 Tag 名字和 Commit 信息
+          if [ -n "$IS_WEBUI_CHANGED" ] && [ -n "$IS_KERNEL_CHANGED" ]; then
+            echo "🚀 检测到双重更新！"
+            TAG_NAME="${KERNEL_VER}_w${WEBUI_VER}"
+            COMMIT_MSG="chore: update Kernel to $KERNEL_VER and WebUI to $WEBUI_VER"
+            BODY="🔥 **双重更新**\n- 内核: $KERNEL_VER\n- 面板: $WEBUI_VER"
+            
+          elif [ -n "$IS_KERNEL_CHANGED" ]; then
+            echo "🚀 检测到内核更新！"
+            TAG_NAME="${KERNEL_VER}-kernel"
+            COMMIT_MSG="chore: update Mihomo Kernel to $KERNEL_VER"
+            BODY="🚀 **内核更新**\n- 版本: $KERNEL_VER\n- 架构: android-arm64"
+            
+          elif [ -n "$IS_WEBUI_CHANGED" ]; then
+            echo "🚀 检测到面板更新！"
+            TAG_NAME="${WEBUI_VER}-webui"
+            COMMIT_MSG="chore: update MetaCubeXD to $WEBUI_VER"
+            BODY="🎨 **面板更新**\n- 版本: $WEBUI_VER"
+          fi
+          
+          # 提交代码
+          git commit -m "$COMMIT_MSG"
+          git push
+          
+          # 导出变量供后续步骤使用
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "body=$BODY" >> $GITHUB_OUTPUT
+          # 解决多行文本输出问题
+          {
+            echo 'body<<EOF'
+            echo -e "$BODY"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      # ==========================================
+      # 步骤 4: 打包发布
+      # ==========================================
+      - name: Zip Module
+        if: steps.commit.outputs.release == 'true'
+        run: |
+          mkdir -p maodie/run
+          # 使用生成的 Tag 作为文件名的一部分
+          zip -r Maodie-Launcher-${{ steps.commit.outputs.tag }}.zip META-INF maodie customize.sh module.prop service.sh uninstall.sh
+
+      - name: Create Release
+        if: steps.commit.outputs.release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.commit.outputs.tag }}
+          name: Auto Update ${{ steps.commit.outputs.tag }}
+          body: ${{ steps.commit.outputs.body }}
+          draft: false
+          prerelease: false
+          files: Maodie-Launcher-${{ steps.commit.outputs.tag }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
