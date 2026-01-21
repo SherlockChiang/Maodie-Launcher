@@ -1,6 +1,6 @@
 {
-  "version": "v20260121-588c41f",
+  "version": "v20260121-82ed566",
   "versionCode": 20260121,
-  "zipUrl": "https://github.com/SherlockChiang/Maodie-Launcher/releases/download/v20260121-588c41f/Maodie-Launcher-v20260121-588c41f.zip",
-  "changelog": "📦 **手动发布**\n- 版本: v20260121-588c41f\n- 基础 Commit: 588c41f"
+  "zipUrl": "https://github.com/SherlockChiang/Maodie-Launcher/releases/download/v20260121-82ed566/Maodie-Launcher-v20260121-82ed566.zip",
+  "changelog": "https://raw.githubusercontent.com/SherlockChiang/Maodie-Launcher/main/changelog.md"
 }
