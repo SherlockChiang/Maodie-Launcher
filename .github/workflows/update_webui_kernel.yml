@@ -67,7 +67,7 @@ jobs:
           mv -f Mihomo "$TARGET_DIR/Mihomo"
 
       # ==========================================
-      # 步骤 3: 核心逻辑 (将 changelog 改为文本)
+      # 步骤 3: 核心逻辑 (生成 changelog.md 文件)
       # ==========================================
       - name: Prepare Release Info & Commit
         id: commit
@@ -78,25 +78,21 @@ jobs:
           MODE="${{ github.event.inputs.job_type }}"
           if [ -z "$MODE" ]; then MODE="check_update"; fi
           
-          # --- 生成统一的 TAG 格式 ---
           SHORT_HASH=$(git rev-parse --short HEAD)
           TAG_NAME="v$(date +'%Y%m%d')-${SHORT_HASH}"
           
-          # 初始化变量
           SHOULD_RELEASE="false"
           COMMIT_MSG=""
           BODY=""
 
           # --- 分支逻辑 ---
           if [ "$MODE" == "force_release" ]; then
-            # [模式 A: 强制发布]
             echo "🚀 强制发布模式"
             SHOULD_RELEASE="true"
             COMMIT_MSG="chore: manual release $TAG_NAME"
             BODY="📦 **手动发布**\n- 版本: $TAG_NAME\n- 基础 Commit: $SHORT_HASH"
             
           else
-            # [模式 B: 检测更新]
             git add .
             CHANGED_FILES=$(git diff --staged --name-only)
             
@@ -124,19 +120,25 @@ jobs:
               BODY="🎨 **面板更新**\n- 版本: $WEBUI_VER"
             fi
             
-            # 把 Tag 加到 Body 里 (这部分文字也会显示在模块管理器的更新日志里)
             BODY="$BODY\n\n📌 **Release Tag**: $TAG_NAME"
           fi
           
           echo "release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
 
           # ============================================
-          # 更新配置文件 (module.prop / update.json)
+          # 更新配置文件 (module.prop / update.json / changelog.md)
           # ============================================
           echo "📝 更新配置文件为: $TAG_NAME"
           
           NEW_VERSION_CODE=$(date +'%Y%m%d')
           UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
+          
+          # 【核心修复 1】生成 changelog.md 文件
+          # 使用 echo -e 处理换行符
+          echo -e "$BODY" > changelog.md
+          
+          # 计算 changelog.md 的直链地址
+          CHANGELOG_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/changelog.md"
           
           # 修改 module.prop
           sed -i "s|^version=.*|version=$TAG_NAME|" module.prop
@@ -144,17 +146,16 @@ jobs:
           sed -i "s|^updateJson=.*|updateJson=$UPDATE_URL|" module.prop
           
           # 生成 update.json
-          # 【核心修改点】将 changelog 的值改为 "$BODY"
-          # 注意：$BODY 变量里的 \n 在这里会被当作 JSON 字符串的转义换行符，这正是我们要的
+          # 【核心修复 2】changelog 字段填入 URL，而不是文本
           echo '{
             "version": "'"$TAG_NAME"'",
             "versionCode": '"$NEW_VERSION_CODE"',
             "zipUrl": "https://github.com/${{ github.repository }}/releases/download/'"$TAG_NAME"'/Maodie-Launcher-'"$TAG_NAME"'.zip",
-            "changelog": "'"$BODY"'"
+            "changelog": "'"$CHANGELOG_URL"'"
           }' > update.json
           
-          # 提交更改
-          git add module.prop update.json
+          # 提交更改 (记得把 changelog.md 也加进去)
+          git add module.prop update.json changelog.md
           git commit -m "$COMMIT_MSG"
           git push
           
