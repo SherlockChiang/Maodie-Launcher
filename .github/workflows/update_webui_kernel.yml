@@ -1,16 +1,25 @@
-name: Auto Update Components (WebUI & Kernel)
+name: Auto Update & Manual Release
 
 on:
   schedule:
     # 每天北京时间早上 8:00 (UTC 0:00) 检查
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      job_type:
+        description: '任务类型 (Task Type)'
+        required: true
+        default: 'check_update'
+        type: choice
+        options:
+          - check_update  # 检测上游更新 (默认)
+          - force_release # 强制打包当前版本发布
 
 permissions:
   contents: write
 
 jobs:
-  check-and-update:
+  process-and-release:
     runs-on: ubuntu-latest
     
     steps:
@@ -21,9 +30,12 @@ jobs:
 
       # ==========================================
       # 步骤 1: 处理 MetaCubeXD (WebUI)
+      # 条件: 仅在检测更新模式下运行
       # ==========================================
       - name: Update MetaCubeXD
         id: webui
+        # 只有在 check_update 模式（或定时触发）下才运行
+        if: github.event.inputs.job_type != 'force_release'
         run: |
           echo "🔍 检查 MetaCubeXD..."
           API_URL="https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest"
@@ -32,7 +44,6 @@ jobs:
           VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
           echo "ver=$VERSION" >> $GITHUB_OUTPUT
           
-          # 修复 URL 空格问题
           DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'compressed-dist.tgz' | cut -d '"' -f 4)
           
           echo "$DOWNLOAD_URL" | xargs wget -q -O webui.tgz
@@ -47,9 +58,11 @@ jobs:
 
       # ==========================================
       # 步骤 2: 处理 Mihomo (Kernel)
+      # 条件: 仅在检测更新模式下运行
       # ==========================================
       - name: Update Mihomo Kernel
         id: kernel
+        if: github.event.inputs.job_type != 'force_release'
         run: |
           echo "🔍 检查 Mihomo Kernel..."
           API_URL="https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
@@ -58,7 +71,6 @@ jobs:
           VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
           echo "ver=$VERSION" >> $GITHUB_OUTPUT
           
-          # 锁定 android-arm64
           DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'android-arm64' | grep '.gz"' | cut -d '"' -f 4)
           
           echo "$DOWNLOAD_URL" | xargs wget -q -O Mihomo.gz
@@ -70,51 +82,85 @@ jobs:
           mv -f Mihomo "$TARGET_DIR/Mihomo"
 
       # ==========================================
-      # 步骤 3: 统一提交、修改配置与生成版本号
+      # 步骤 3: 核心逻辑 (Diff检测 / 强制发布 / 配置文件更新)
       # ==========================================
-      - name: Check Changes & Commit
+      - name: Prepare Release Info & Commit
         id: commit
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # 先添加变动以检测 Diff
-          git add .
-          CHANGED_FILES=$(git diff --staged --name-only)
+          # 判断当前模式
+          MODE="${{ github.event.inputs.job_type }}"
+          # 如果是定时任务触发，inputs 为空，默认为 check_update
+          if [ -z "$MODE" ]; then MODE="check_update"; fi
           
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "✅ 所有组件均为最新，无须更新。"
-            echo "release=false" >> $GITHUB_OUTPUT
-            exit 0
+          echo "🔧 当前运行模式: $MODE"
+
+          # --- 分支逻辑开始 ---
+          if [ "$MODE" == "force_release" ]; then
+            # === 模式 A: 强制发布 ===
+            echo "🚀 执行强制发布，跳过上游检测..."
+            
+            # 生成版本号 (v日期-CommitHash)
+            SHORT_HASH=$(git rev-parse --short HEAD)
+            TAG_NAME="v$(date +'%Y%m%d')-${SHORT_HASH}"
+            
+            COMMIT_MSG="chore: manual release $TAG_NAME"
+            BODY="📦 **手动发布**\n- 版本: $TAG_NAME\n- 基于 Commit: $SHORT_HASH"
+            
+            echo "release=true" >> $GITHUB_OUTPUT
+            
+          else
+            # === 模式 B: 检测更新 (默认) ===
+            git add .
+            CHANGED_FILES=$(git diff --staged --name-only)
+            
+            if [ -z "$CHANGED_FILES" ]; then
+              echo "✅ 所有组件均为最新，无须更新。"
+              echo "release=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "release=true" >> $GITHUB_OUTPUT
+            
+            # 获取上游版本号
+            WEBUI_VER="${{ steps.webui.outputs.ver }}"
+            KERNEL_VER="${{ steps.kernel.outputs.ver }}"
+            IS_WEBUI_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/config/webui" || true)
+            IS_KERNEL_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/kernel/Mihomo" || true)
+            
+            # 命名逻辑
+            if [ -n "$IS_WEBUI_CHANGED" ] && [ -n "$IS_KERNEL_CHANGED" ]; then
+              TAG_NAME="${KERNEL_VER}_w${WEBUI_VER}"
+              COMMIT_MSG="chore: update Kernel to $KERNEL_VER and WebUI to $WEBUI_VER"
+              BODY="🔥 **双重更新**\n- 内核: $KERNEL_VER\n- 面板: $WEBUI_VER"
+            elif [ -n "$IS_KERNEL_CHANGED" ]; then
+              TAG_NAME="${KERNEL_VER}-kernel"
+              COMMIT_MSG="chore: update Mihomo Kernel to $KERNEL_VER"
+              BODY="🚀 **内核更新**\n- 版本: $KERNEL_VER"
+            elif [ -n "$IS_WEBUI_CHANGED" ]; then
+              TAG_NAME="${WEBUI_VER}-webui"
+              COMMIT_MSG="chore: update MetaCubeXD to $WEBUI_VER"
+              BODY="🎨 **面板更新**\n- 版本: $WEBUI_VER"
+            fi
           fi
+          # --- 分支逻辑结束 ---
+
+          # ============================================
+          # 公共逻辑: 修改 module.prop 和 update.json
+          # ============================================
+          echo "📝 更新配置文件..."
           
-          echo "release=true" >> $GITHUB_OUTPUT
-          
-          # --- 决定版本号逻辑 ---
-          WEBUI_VER="${{ steps.webui.outputs.ver }}"
-          KERNEL_VER="${{ steps.kernel.outputs.ver }}"
-          IS_WEBUI_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/config/webui" || true)
-          IS_KERNEL_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/kernel/Mihomo" || true)
-          
-          if [ -n "$IS_WEBUI_CHANGED" ] && [ -n "$IS_KERNEL_CHANGED" ]; then
-            TAG_NAME="${KERNEL_VER}_w${WEBUI_VER}"
-            COMMIT_MSG="chore: update Kernel to $KERNEL_VER and WebUI to $WEBUI_VER"
-          elif [ -n "$IS_KERNEL_CHANGED" ]; then
-            TAG_NAME="${KERNEL_VER}-kernel"
-            COMMIT_MSG="chore: update Mihomo Kernel to $KERNEL_VER"
-          elif [ -n "$IS_WEBUI_CHANGED" ]; then
-            TAG_NAME="${WEBUI_VER}-webui"
-            COMMIT_MSG="chore: update MetaCubeXD to $WEBUI_VER"
-          fi
-          
-          # --- 修改 module.prop 和 update.json ---
           NEW_VERSION_CODE=$(date +'%Y%m%d')
           UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
           
+          # 修改 module.prop
           sed -i "s|^version=.*|version=$TAG_NAME|" module.prop
           sed -i "s|^versionCode=.*|versionCode=$NEW_VERSION_CODE|" module.prop
           sed -i "s|^updateUrl=.*|updateUrl=$UPDATE_URL|" module.prop
           
+          # 生成 update.json
           echo '{
             "version": "'"$TAG_NAME"'",
             "versionCode": '"$NEW_VERSION_CODE"',
@@ -122,43 +168,43 @@ jobs:
             "changelog": "https://github.com/${{ github.repository }}/releases/tag/'"$TAG_NAME"'"
           }' > update.json
           
-          # 再次 add 以包含 prop 和 json 的变动
+          # 提交更改
+          # 注意：如果是 force_release，这里会把修改后的 prop/json 提交上去
           git add module.prop update.json
           git commit -m "$COMMIT_MSG"
           git push
           
-          # 导出 Tag 供 Release 步骤使用
+          # 导出变量
           echo "release_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          {
+            echo 'body<<EOF'
+            echo -e "$BODY"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
       # ==========================================
-      # 步骤 4: 打包 ZIP (完全按照您的模板格式)
+      # 步骤 4: 打包 ZIP
       # ==========================================
       - name: Zip Module
         if: steps.commit.outputs.release == 'true'
         run: |
-          # 确保运行目录存在
           mkdir -p maodie/run
-          
-          # 定义文件名 (为了区分版本，文件名带上 Tag，但包内结构严格遵守您的模板)
           ZIP_NAME="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
-          
-          # 【关键】显式指定文件列表，与您的 Build 模板保持一致
           zip -r "$ZIP_NAME" META-INF maodie customize.sh module.prop service.sh uninstall.sh
-          
-          # 导出文件名供 Release 步骤使用
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
 
       # ==========================================
-      # 步骤 5: 发布 Release (完全按照您的模板格式)
+      # 步骤 5: 发布 Release
       # ==========================================
       - name: Create Release
         if: steps.commit.outputs.release == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.commit.outputs.release_tag }} # 使用生成的版本号
-          name: Maodie Launcher ${{ steps.commit.outputs.release_tag }} # 保持一致的标题格式
+          tag_name: ${{ steps.commit.outputs.release_tag }}
+          name: Maodie Launcher ${{ steps.commit.outputs.release_tag }}
+          body: ${{ steps.commit.outputs.body }}
           draft: false
           prerelease: false
-          files: ${{ env.zip_name }} # 上传刚才打包的文件
+          files: ${{ env.zip_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
