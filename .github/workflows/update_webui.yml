@@ -2,7 +2,6 @@ name: Auto Update MetaCubeXD & Release
 
 on:
   schedule:
-    # 每天北京时间早上 8:00 (UTC 0:00) 检查
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -14,27 +13,24 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # --- 1. 拉取代码 ---
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- 2. 下载最新的 MetaCubeXD (适配 .tgz) ---
       - name: Fetch Latest MetaCubeXD
         run: |
           echo "正在检查 MetaCubeXD 最新版本..."
           
-          # 获取 API 数据
           LATEST_DATA=$(curl -s https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest)
           
-          # 1. 提取版本号 (例如 v1.235.0)
+          # 1. 提取版本号
           VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
           echo "发现最新版本: $VERSION"
           
-          # 2. 提取 .tgz 下载链接 (根据你的截图修正)
-          # 我们专门匹配 'compressed-dist.tgz'
-          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'compressed-dist.tgz' | cut -d : -f 2,3 | tr -d \")
+          # 2. 【核心修复】更精准的提取方式，避免前面的空格
+          # 使用 cut -d '"' -f 4 直接取双引号里的内容
+          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'compressed-dist.tgz' | cut -d '"' -f 4)
           
           if [ -z "$DOWNLOAD_URL" ]; then
             echo "❌ 错误: 未找到 compressed-dist.tgz 下载链接！"
@@ -42,39 +38,24 @@ jobs:
           fi
           
           echo "下载地址: $DOWNLOAD_URL"
-          wget -O webui.tgz "$DOWNLOAD_URL"
           
-          # 3. 解压 .tgz (使用 tar 命令)
+          # 3. 下载 (使用 xargs 去除可能的残留空白符，双重保险)
+          echo "$DOWNLOAD_URL" | xargs wget -O webui.tgz
+          
           mkdir -p temp_webui
-          # -x: 解压, -z: gzip属性, -f: 文件, -C: 目标目录
           tar -xzvf webui.tgz -C temp_webui
           
-          # 导出版本号给后续步骤使用
           echo "ui_version=$VERSION" >> $GITHUB_ENV
 
-      # --- 3. 替换文件 ---
       - name: Replace WebUI Files
         run: |
           TARGET_DIR="maodie/config/webui"
-          
-          # 确保目录存在
           mkdir -p "$TARGET_DIR"
-          
-          # 清空旧文件
           rm -rf "$TARGET_DIR"/*
-          
-          # 移动新文件
-          # 注意：有时候解压出来会多一层文件夹，我们用 find 确保把文件移动对
-          # 这里假设解压后直接是文件，或者都在一个子目录里
           cp -r temp_webui/* "$TARGET_DIR"/
-          
-          # 清理垃圾
           rm -rf temp_webui webui.tgz
-          
           echo "✅ WebUI 文件替换完成"
-          ls -R "$TARGET_DIR"
 
-      # --- 4. 检查是否有变化并提交 ---
       - name: Check for Changes and Commit
         id: git_check
         run: |
@@ -88,33 +69,25 @@ jobs:
             echo "updated=false" >> $GITHUB_OUTPUT
           else
             echo "检测到新内容，正在提交..."
-            # 使用官方版本号作为 Commit 信息
             git commit -m "chore: auto update MetaCubeXD to ${{ env.ui_version }}"
             git push
-            
             echo "updated=true" >> $GITHUB_OUTPUT
           fi
 
-      # --- 5. 打包模块 (仅在有更新时) ---
       - name: Zip Module
         if: steps.git_check.outputs.updated == 'true'
         run: |
-          # 强制创建运行目录 (防御性编程)
           mkdir -p maodie/run
-          
-          # 打包
           zip -r Maodie-Launcher-${{ env.ui_version }}.zip META-INF maodie customize.sh module.prop service.sh uninstall.sh
 
-      # --- 6. 发布 Release ---
       - name: Create Release
         if: steps.git_check.outputs.updated == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          # Tag 格式：v1.235.0-webui
           tag_name: ${{ env.ui_version }}-webui
           name: Auto Update WebUI ${{ env.ui_version }}
           body: |
-            自动同步 MetaCubeXD 面板至版本 **${{ env.ui_version }}**
+            🤖 自动同步 MetaCubeXD 面板至版本 **${{ env.ui_version }}**
             
             此版本包含最新的 WebUI 文件。
           draft: false
