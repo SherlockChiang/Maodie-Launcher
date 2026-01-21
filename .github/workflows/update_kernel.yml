@@ -1,0 +1,113 @@
+name: Auto Update Mihomo Kernel & Release
+
+on:
+  schedule:
+    # 每天北京时间早上 8:00 (UTC 0:00) 检查
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-kernel-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # --- 1. 拉取代码 ---
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- 2. 下载最新的 Mihomo 内核 ---
+      - name: Fetch Latest Mihomo Kernel
+        run: |
+          echo "正在检查 Mihomo 最新版本..."
+          
+          # 获取 API 数据
+          LATEST_DATA=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest)
+          
+          # 提取版本号 (例如 v1.18.1)
+          VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "发现最新版本: $VERSION"
+          
+          # 提取下载链接
+          # 关键点：匹配 "android-arm64" 且以 ".gz" 结尾的文件
+          # 这是目前绝大多数安卓手机通用的高性能架构
+          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'android-arm64' | grep '.gz"' | cut -d : -f 2,3 | tr -d \")
+          
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "❌ 错误: 未找到 android-arm64 的内核下载链接！"
+            exit 1
+          fi
+          
+          echo "下载地址: $DOWNLOAD_URL"
+          wget -O Mihomo.gz "$DOWNLOAD_URL"
+          
+          # 解压 .gz (得到二进制文件)
+          gzip -d Mihomo.gz
+          
+          # 赋予执行权限 (防止解压后权限丢失)
+          chmod +x Mihomo
+          
+          # 导出版本号
+          echo "kernel_version=$VERSION" >> $GITHUB_ENV
+
+      # --- 3. 替换内核文件 ---
+      - name: Replace Kernel File
+        run: |
+          TARGET_FILE="maodie/kernel/Mihomo"
+          
+          # 确保目录存在
+          mkdir -p maodie/kernel
+          
+          # 强制覆盖旧文件
+          mv -f Mihomo "$TARGET_FILE"
+          
+          echo "✅ 内核文件已替换为 $kernel_version"
+          ls -l "$TARGET_FILE"
+
+      # --- 4. 检查变化并提交 ---
+      - name: Check for Changes and Commit
+        id: git_check
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          git add maodie/kernel/Mihomo
+          
+          if git diff --staged --quiet; then
+            echo "内核已经是最新版本，跳过。"
+            echo "updated=false" >> $GITHUB_OUTPUT
+          else
+            echo "检测到新内核，正在提交..."
+            git commit -m "chore: auto update Mihomo Kernel to ${{ env.kernel_version }}"
+            git push
+            
+            echo "updated=true" >> $GITHUB_OUTPUT
+          fi
+
+      # --- 5. 打包模块 ---
+      - name: Zip Module
+        if: steps.git_check.outputs.updated == 'true'
+        run: |
+          mkdir -p maodie/run
+          zip -r Maodie-Launcher-${{ env.kernel_version }}.zip META-INF maodie customize.sh module.prop service.sh uninstall.sh
+
+      # --- 6. 发布 Release ---
+      - name: Create Release
+        if: steps.git_check.outputs.updated == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.kernel_version }}-kernel
+          name: Auto Update Kernel ${{ env.kernel_version }}
+          body: |
+            🚀 自动同步 Mihomo 内核至版本 **${{ env.kernel_version }}**
+            
+            架构：`android-arm64`
+          draft: false
+          prerelease: false
+          files: Maodie-Launcher-${{ env.kernel_version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
