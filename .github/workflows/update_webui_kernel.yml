@@ -67,7 +67,7 @@ jobs:
           mv -f Mihomo "$TARGET_DIR/Mihomo"
 
       # ==========================================
-      # 步骤 3: 核心逻辑 (统一版本号格式)
+      # 步骤 3: 核心逻辑 (将 changelog 改为文本)
       # ==========================================
       - name: Prepare Release Info & Commit
         id: commit
@@ -79,8 +79,6 @@ jobs:
           if [ -z "$MODE" ]; then MODE="check_update"; fi
           
           # --- 生成统一的 TAG 格式 ---
-          # 格式: v20260121-0f5a19e
-          # 使用 HEAD 的 Hash，确保每次基于最新代码状态生成
           SHORT_HASH=$(git rev-parse --short HEAD)
           TAG_NAME="v$(date +'%Y%m%d')-${SHORT_HASH}"
           
@@ -110,13 +108,11 @@ jobs:
             
             SHOULD_RELEASE="true"
             
-            # 获取上游版本号用于写日志
             WEBUI_VER="${{ steps.webui.outputs.ver }}"
             KERNEL_VER="${{ steps.kernel.outputs.ver }}"
             IS_WEBUI_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/config/webui" || true)
             IS_KERNEL_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/kernel/Mihomo" || true)
             
-            # 这里的逻辑只影响 Commit Message 和 Release Body，不影响 Tag 名字了
             if [ -n "$IS_WEBUI_CHANGED" ] && [ -n "$IS_KERNEL_CHANGED" ]; then
               COMMIT_MSG="chore: update Kernel($KERNEL_VER) & WebUI($WEBUI_VER)"
               BODY="🔥 **双重更新**\n- 内核: $KERNEL_VER\n- 面板: $WEBUI_VER"
@@ -128,7 +124,7 @@ jobs:
               BODY="🎨 **面板更新**\n- 版本: $WEBUI_VER"
             fi
             
-            # 把 Tag 加到 Body 里方便查看
+            # 把 Tag 加到 Body 里 (这部分文字也会显示在模块管理器的更新日志里)
             BODY="$BODY\n\n📌 **Release Tag**: $TAG_NAME"
           fi
           
@@ -145,14 +141,16 @@ jobs:
           # 修改 module.prop
           sed -i "s|^version=.*|version=$TAG_NAME|" module.prop
           sed -i "s|^versionCode=.*|versionCode=$NEW_VERSION_CODE|" module.prop
-          sed -i "s|^updateUrl=.*|updateUrl=$UPDATE_URL|" module.prop
+          sed -i "s|^updateJson=.*|updateJson=$UPDATE_URL|" module.prop
           
           # 生成 update.json
+          # 【核心修改点】将 changelog 的值改为 "$BODY"
+          # 注意：$BODY 变量里的 \n 在这里会被当作 JSON 字符串的转义换行符，这正是我们要的
           echo '{
             "version": "'"$TAG_NAME"'",
             "versionCode": '"$NEW_VERSION_CODE"',
             "zipUrl": "https://github.com/${{ github.repository }}/releases/download/'"$TAG_NAME"'/Maodie-Launcher-'"$TAG_NAME"'.zip",
-            "changelog": "https://github.com/${{ github.repository }}/releases/tag/'"$TAG_NAME"'"
+            "changelog": "'"$BODY"'"
           }' > update.json
           
           # 提交更改
