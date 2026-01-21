@@ -184,7 +184,7 @@ rules:
   - RULE-SET,microsoft_domain,Microsoft
   - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
-  - RULE-SET,geolocation-!cn,其他
+  - RULE-SET,geolocation-!cn,默认
   - RULE-SET,google_ip,Google
   - RULE-SET,telegram_ip,Telegram
   
