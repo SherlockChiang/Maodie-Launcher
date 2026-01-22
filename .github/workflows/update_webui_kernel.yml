@@ -237,10 +237,7 @@ jobs:
             --min-sdk-version 24 \
             "$FINAL_ZIP"
           
-          # 5. 验证签名块是否存在 (可选，用于调试)
-          "$APKSIGNER" verify --verbose "$FINAL_ZIP"
-          
-          # 6. 清理和导出
+          # 5. 清理和导出
           if [ -f "$FINAL_ZIP" ]; then
             echo "✅ 签名完成: $FINAL_ZIP"
             rm debug.keystore
