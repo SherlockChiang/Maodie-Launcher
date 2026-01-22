@@ -20,7 +20,7 @@ tun:
   auto-detect-interface: true 
   dns-hijack:
     - any:53
-  mtu: 9000 
+  mtu: 1500 
 
 dns:
   enable: true
@@ -28,22 +28,12 @@ dns:
   ipv6: true
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
-  fake-ip-filter-mode: rule
   fake-ip-filter:
-    # 局域网与特殊协议
-    - DOMAIN-SUFFIX,lan,real-ip
-    - DOMAIN-SUFFIX,local,real-ip
-    - DOMAIN-KEYWORD,stun,real-ip
-    - DOMAIN-KEYWORD,udp,real-ip
-    
-    # 所有国内域名 -> 强制 Real-IP
-    - GEOSITE,tencent,real-ip
-    - GEOSITE,cn,real-ip
-    - GEOSITE,private,real-ip
-    
-    # 国外域名与默认策略
-    - GEOSITE,geolocation-!cn,fake-ip
-    - MATCH,fake-ip
+    - '*.lan'
+    - '*.local'
+    - '*.localhost'
+    - '+.stun.*'
+    - '+.stun.*.*'
 
   default-nameserver:
     - 223.6.6.6
@@ -52,22 +42,17 @@ dns:
     - 223.6.6.6
     - 119.29.29.29
   direct-nameserver-follow-policy: true
-  nameserver:
-    - tls://dns.google
-    - tls://dns.cloudflare.com
   proxy-server-nameserver:
     - 223.5.5.5
     - 119.29.29.29
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+
   nameserver-policy:
-    "geosite:tencent":
-      - 223.5.5.5
-      - 119.29.29.29
     "geosite:cn,private":
-      - tls://dns.alidns.com
-      - tls://dot.pub
-    "geosite:geolocation-!cn":
-      - tls://dns.google
-      - tls://dns.cloudflare.com
+      - https://dns.alidns.com/dns-query
+      - https://doh.pub/dns-query
 
 sniffer:
   enable: true
