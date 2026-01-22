@@ -26,6 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       # ==========================================
       # 步骤 1 & 2: 下载更新 (逻辑保持不变)
@@ -67,7 +68,7 @@ jobs:
           mv -f Mihomo "$TARGET_DIR/Mihomo"
 
       # ==========================================
-      # 步骤 3: 核心逻辑 (生成 changelog.md 文件)
+      # 步骤 3: 核心逻辑 (含 Commit 提取功能)
       # ==========================================
       - name: Prepare Release Info & Commit
         id: commit
@@ -81,6 +82,29 @@ jobs:
           SHORT_HASH=$(git rev-parse --short HEAD)
           TAG_NAME="v$(date +'%Y%m%d')-${SHORT_HASH}"
           
+          # --- 核心新增：提取 Git 变更日志 ---
+          echo "📜 正在生成 Commit 日志..."
+          
+          # 1. 尝试找到上一个 Tag
+          # 2>/dev/null 屏蔽错误信息 (如果是第一次发版可能找不到 tag)
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "  未找到旧标签，列出最近 10 条记录。"
+            # 格式：- 提交信息 (ShortHash)
+            COMMIT_LOGS=$(git log --pretty=format:"- %s (%h)" -n 10)
+          else
+            echo "  对比区间: $PREV_TAG...HEAD"
+            COMMIT_LOGS=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
+          fi
+          
+          # 如果日志为空 (比如刚发版完又跑了一次)，给个提示
+          if [ -z "$COMMIT_LOGS" ]; then
+            COMMIT_LOGS="- (No new commits)"
+          fi
+          
+          # ------------------------------------
+
           SHOULD_RELEASE="false"
           COMMIT_MSG=""
           BODY=""
@@ -90,9 +114,12 @@ jobs:
             echo "🚀 强制发布模式"
             SHOULD_RELEASE="true"
             COMMIT_MSG="chore: manual release $TAG_NAME"
-            BODY="📦 **手动发布**\n- 版本: $TAG_NAME\n- 基础 Commit: $SHORT_HASH"
+            
+            # 构建 Body：加入 Commit Logs
+            BODY="📦 **手动发布**\n- 版本: $TAG_NAME\n- 基础 Commit: $SHORT_HASH\n\n### 📝 变更日志 (Changelog):\n$COMMIT_LOGS"
             
           else
+            # [模式 B: 检测更新]
             git add .
             CHANGED_FILES=$(git diff --staged --name-only)
             
@@ -120,24 +147,24 @@ jobs:
               BODY="🎨 **面板更新**\n- 版本: $WEBUI_VER"
             fi
             
-            BODY="$BODY\n\n📌 **Release Tag**: $TAG_NAME"
+            # 拼接日志
+            # 注意：这里的 COMMIT_LOGS 是“本次自动更新操作之前”的提交记录
+            # 如果你在两次自动更新之间手动修改了脚本，这里就会显示出来
+            BODY="$BODY\n\n### 📝 变更日志 (Changelog):\n$COMMIT_LOGS\n\n📌 **Release Tag**: $TAG_NAME"
           fi
           
           echo "release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
 
           # ============================================
-          # 更新配置文件 (module.prop / update.json / changelog.md)
+          # 更新配置文件
           # ============================================
           echo "📝 更新配置文件为: $TAG_NAME"
           
           NEW_VERSION_CODE=$(date +'%Y%m%d')
           UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
           
-          # 【核心修复 1】生成 changelog.md 文件
-          # 使用 echo -e 处理换行符
+          # 生成 changelog.md (带上 Commit 详情)
           echo -e "$BODY" > changelog.md
-          
-          # 计算 changelog.md 的直链地址
           CHANGELOG_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/changelog.md"
           
           # 修改 module.prop
@@ -146,7 +173,6 @@ jobs:
           sed -i "s|^updateJson=.*|updateJson=$UPDATE_URL|" module.prop
           
           # 生成 update.json
-          # 【核心修复 2】changelog 字段填入 URL，而不是文本
           echo '{
             "version": "'"$TAG_NAME"'",
             "versionCode": '"$NEW_VERSION_CODE"',
@@ -154,7 +180,7 @@ jobs:
             "changelog": "'"$CHANGELOG_URL"'"
           }' > update.json
           
-          # 提交更改 (记得把 changelog.md 也加进去)
+          # 提交更改
           git add module.prop update.json changelog.md
           git commit -m "$COMMIT_MSG"
           git push

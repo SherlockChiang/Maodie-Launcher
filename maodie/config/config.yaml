@@ -30,13 +30,14 @@ dns:
   fake-ip-range: 198.18.0.1/16
   fake-ip-filter-mode: rule
   fake-ip-filter:
-    # 局域网与特殊协议 (必须 Real-IP)
+    # 局域网与特殊协议
     - DOMAIN-SUFFIX,lan,real-ip
     - DOMAIN-SUFFIX,local,real-ip
     - DOMAIN-KEYWORD,stun,real-ip
     - DOMAIN-KEYWORD,udp,real-ip
     
     # 所有国内域名 -> 强制 Real-IP
+    - GEOSITE,tencent,real-ip
     - GEOSITE,cn,real-ip
     - GEOSITE,private,real-ip
     
@@ -185,7 +186,11 @@ rules:
   
   # 优先匹配内置规则，速度更快
   - RULE-SET,ad,REJECT
+
+  - KEYWORD,wechat,直连,no-resolve
   - RULE-SET,private_ip,直连,no-resolve
+  - RULE-SET,private_domain,直连
+  - RULE-SET,tencent_domain,直连
   - RULE-SET,cn_domain,直连
   - RULE-SET,cn_ip,直连,no-resolve
   
@@ -208,6 +213,9 @@ rule-providers:
   private_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"
+  tencent_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tencent.mrs"
   cn_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"

@@ -4,10 +4,15 @@ SKIPUNZIP=1
 # === 变量定义 ===
 EXISTING_DIR="/data/adb/modules/Maodie-Launcher"
 OLD_CONFIG="$EXISTING_DIR/maodie/config/config.yaml"
+
 # 旧的 providers 文件夹路径
 OLD_PROVIDERS_DIR="$EXISTING_DIR/maodie/config/proxy_providers"
 # 新的 providers 文件夹路径
 NEW_PROVIDERS_DIR="$MODPATH/maodie/config/proxy_providers"
+
+# === 变量定义：新增 cache.db ===
+OLD_CACHE_DB="$EXISTING_DIR/maodie/config/cache.db"
+NEW_CACHE_DB="$MODPATH/maodie/config/cache.db"
 
 NEW_CONFIG="$MODPATH/maodie/config/config.yaml"
 TEMP_PROVIDERS="$MODPATH/user_providers.yaml"
@@ -31,25 +36,31 @@ chmod -R 755 "$MODPATH/maodie/config/webui"
 ui_print "- 开始配置迁移..."
 
 if [ -d "$EXISTING_DIR" ]; then
-  # === 新增功能：保留 proxy_providers 文件夹 ===
+
+  # === 逻辑 A: 保留 proxy_providers 文件夹 ===
   if [ -d "$OLD_PROVIDERS_DIR" ]; then
     ui_print "  发现旧版 proxy_providers 文件夹，正在保留..."
-    
-    # 确保新目录存在（防止解压时没包含空文件夹）
     mkdir -p "$NEW_PROVIDERS_DIR"
-    
-    # 递归复制旧文件夹内的所有内容到新位置
-    # cp -rf 强制递归复制
     cp -rf "$OLD_PROVIDERS_DIR/"* "$NEW_PROVIDERS_DIR/"
-    
-    # 重新赋予权限，防止复制后权限丢失
     chmod -R 755 "$NEW_PROVIDERS_DIR"
     ui_print "  ✅ proxy_providers 文件夹迁移完成"
   else
     ui_print "  未发现旧版 proxy_providers 文件夹，跳过..."
   fi
 
-  # ===原有逻辑：保留 config.yaml 中的订阅配置 ===
+  # === 逻辑 B: 保留 cache.db (新增功能) ===
+  if [ -f "$OLD_CACHE_DB" ]; then
+    ui_print "  发现旧版 cache.db，正在保留..."
+    # 强制覆盖新包里可能自带的空 cache.db
+    cp -f "$OLD_CACHE_DB" "$NEW_CACHE_DB"
+    # 赋予读写权限 (644: Owner读写, Group/Others读)
+    chmod 644 "$NEW_CACHE_DB"
+    ui_print "  ✅ cache.db 迁移完成"
+  else
+    ui_print "  未发现旧版 cache.db，跳过..."
+  fi
+
+  # === 逻辑 C: 保留 config.yaml 中的订阅配置 ===
   if [ -f "$OLD_CONFIG" ]; then
     ui_print "  发现旧版本配置，正在提取订阅信息..."
 
@@ -60,10 +71,7 @@ if [ -d "$EXISTING_DIR" ]; then
     if [ -s "$TEMP_PROVIDERS" ]; then
       ui_print "  成功提取旧订阅 (proxy-providers)！"
       
-      # 1. 提取新配置中 "proxy-providers:" 之前的所有行 (头部)
       START_LINE=$(grep -n "^proxy-providers:" "$NEW_CONFIG" | cut -d: -f1)
-      
-      # 2. 提取新配置中 "proxy-groups:" 及其之后的所有行 (尾部)
       END_LINE=$(grep -n "^proxy-groups:" "$NEW_CONFIG" | cut -d: -f1)
 
       if [ -n "$START_LINE" ] && [ -n "$END_LINE" ]; then
