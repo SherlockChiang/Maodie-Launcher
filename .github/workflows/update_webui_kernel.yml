@@ -160,7 +160,7 @@ jobs:
           # ============================================
           echo "📝 更新配置文件为: $TAG_NAME"
           
-          NEW_VERSION_CODE=$(date +'%Y%m%d')
+          NEW_VERSION_CODE=$(date +'%Y%m%d%H%M')
           UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
           
           # 生成 changelog.md (带上 Commit 详情)

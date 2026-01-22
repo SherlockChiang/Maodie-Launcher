@@ -59,6 +59,9 @@ dns:
     - 223.5.5.5
     - 119.29.29.29
   nameserver-policy:
+    "geosite:tencent":
+      - 223.5.5.5
+      - 119.29.29.29
     "geosite:cn,private":
       - tls://dns.alidns.com
       - tls://dot.pub
@@ -96,7 +99,8 @@ proxies:
 proxy-providers:
   provider1:
     <<: *p
-    url: "请填写您自己的机场地址
+    url: "请填写您自己的机场地址"
+    path: ./proxy_providers/subscribe1.yaml
     interval: 21600
   
   provider2:
@@ -187,7 +191,6 @@ rules:
   # 优先匹配内置规则，速度更快
   - RULE-SET,ad,REJECT
 
-  - KEYWORD,wechat,直连,no-resolve
   - RULE-SET,private_ip,直连,no-resolve
   - RULE-SET,private_domain,直连
   - RULE-SET,tencent_domain,直连
