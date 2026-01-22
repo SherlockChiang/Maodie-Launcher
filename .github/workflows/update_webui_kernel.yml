@@ -220,7 +220,7 @@ jobs:
             -storepass android \
             -keypass android
 
-          # 4. 寻找并使用 apksigner 签名 (这是关键修改！)
+          # 4. 寻找并使用 apksigner 签名
           echo "✍️ 正在使用 apksigner 签名..."
           
           # 自动找到构建工具目录下的最新 apksigner
@@ -234,6 +234,7 @@ jobs:
             --ks-pass pass:android \
             --ks-key-alias android \
             --key-pass pass:android \
+            --min-sdk-version 24 \
             "$FINAL_ZIP"
           
           # 5. 验证签名块是否存在 (可选，用于调试)
