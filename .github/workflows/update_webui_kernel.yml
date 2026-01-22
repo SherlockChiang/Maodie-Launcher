@@ -160,7 +160,7 @@ jobs:
           # ============================================
           echo "📝 更新配置文件为: $TAG_NAME"
           
-          NEW_VERSION_CODE=$(date +'%Y%m%d%H%M')
+          NEW_VERSION_CODE=$(date +'%Y%m%d')
           UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
           
           # 生成 changelog.md (带上 Commit 详情)
@@ -194,7 +194,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       # ==========================================
-      # 步骤 4: 打包并签名 (Jarsigner 版 - 最稳定)
+      # 步骤 4: 打包并签名 (使用 apksigner - 修复版)
       # ==========================================
       - name: Zip and Sign Module
         if: steps.commit.outputs.release == 'true'
@@ -204,11 +204,11 @@ jobs:
           # 1. 定义文件名
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
           
-          # 2. 打包 (直接打成最终文件，稍后直接对它签名)
+          # 2. 打包 (注意：apksigner 需要对齐，虽然对模块不是必须的，但这是标准流程)
           echo "📦 正在打包..."
           zip -r "$FINAL_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
           
-          # 3. 生成临时密钥 (Keytool 是 Java 内置工具)
+          # 3. 生成临时密钥 (和之前一样，为了生成证书)
           echo "🔑 生成临时签名证书..."
           keytool -genkeypair \
             -alias android \
@@ -219,32 +219,35 @@ jobs:
             -keystore debug.keystore \
             -storepass android \
             -keypass android
+
+          # 4. 寻找并使用 apksigner 签名 (这是关键修改！)
+          echo "✍️ 正在使用 apksigner 签名..."
           
-          # 4. 执行签名 (Jarsigner 是 Java 内置工具)
-          # 使用 SHA1 算法以保证最大兼容性 (Magisk/KSU 认这个)
-          echo "✍️ 正在签名..."
-          jarsigner \
-            -verbose \
-            -sigalg SHA1withRSA \
-            -digestalg SHA1 \
-            -keystore debug.keystore \
-            -storepass android \
-            "$FINAL_ZIP" \
-            android
+          # 自动找到构建工具目录下的最新 apksigner
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
           
-          # 5. 验证文件
+          echo "使用工具: $APKSIGNER"
+          
+          "$APKSIGNER" sign \
+            --ks debug.keystore \
+            --ks-pass pass:android \
+            --ks-key-alias android \
+            --key-pass pass:android \
+            "$FINAL_ZIP"
+          
+          # 5. 验证签名块是否存在 (可选，用于调试)
+          "$APKSIGNER" verify --verbose "$FINAL_ZIP"
+          
+          # 6. 清理和导出
           if [ -f "$FINAL_ZIP" ]; then
             echo "✅ 签名完成: $FINAL_ZIP"
-            ls -lh "$FINAL_ZIP"
-            
-            # 清理密钥文件
             rm debug.keystore
           else
             echo "❌ 错误：文件未生成！"
             exit 1
           fi
           
-          # 6. 导出文件名供发布使用
           echo "zip_name=$FINAL_ZIP" >> $GITHUB_ENV
 
       # ==========================================
