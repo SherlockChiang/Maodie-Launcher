@@ -1,8 +1,7 @@
 🎨 **面板更新**
-- 版本: v1.235.3
+- 版本: v1.236.0
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (736bf6d)
-- remove sign (b200374)
+- (No new commits)
 
-📌 **Release Tag**: v20260126-736bf6d
+📌 **Release Tag**: v20260127-894db2d
