@@ -207,7 +207,7 @@ jobs:
           # 2. 打包 (直接压缩，不包含签名块)
           echo "📦 正在打包 (无签名模式)..."
           # -r 表示递归压缩
-          zip -r "$FINAL_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh
+          zip -r "$FINAL_ZIP" META-INF maodie customize.sh module.prop service.sh uninstall.sh action.sh
           
           # 3. 检查文件并导出变量
           if [ -f "$FINAL_ZIP" ]; then
