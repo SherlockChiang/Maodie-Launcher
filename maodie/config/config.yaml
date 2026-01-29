@@ -18,9 +18,12 @@ tun:
   device: utun 
   auto-route: true 
   auto-detect-interface: true 
+  exclude-package:
+    - com.tencent.mobileqq
+    - com.tencent.mm
   dns-hijack:
     - any:53
-  mtu: 1500 
+  mtu: 9000 
 
 dns:
   enable: true
@@ -84,19 +87,19 @@ proxies:
 proxy-providers:
   provider1:
     <<: *p
-    url: "请填写您自己的机场地址"
+    url: "请填写您自己的代理地址"
     path: ./proxy_providers/subscribe1.yaml
     interval: 21600
   
   provider2:
     <<: *p
-    url: "请填写您自己的机场地址"
+    url: "请填写您自己的代理地址"
     path: ./proxy_providers/subscribe2.yaml
     interval: 86400
   
   provider3:
     <<: *p
-    url: "请填写您自己的机场地址"
+    url: "请填写您自己的代理地址"
     path: ./proxy_providers/subscribe3.yaml
     interval: 86400
 
@@ -110,6 +113,11 @@ proxy-groups:
     type: select
     proxies: [默认, 香港, 日本, 美国, 全部节点]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Google_Search.png"
+  
+  - name: Google_fcm
+    type: select
+    proxies: [直连, 默认, 香港, 日本, 美国, 全部节点]
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Google_Chrome.png"
 
   - name: Telegram
     type: select
@@ -181,7 +189,7 @@ rules:
   - RULE-SET,tencent_domain,直连
   - RULE-SET,cn_domain,直连
   - RULE-SET,cn_ip,直连,no-resolve
-  
+  - RULE-SET,google_fcm,Google_fcm
   - RULE-SET,github_domain,Github
   - RULE-SET,microsoft_domain,Microsoft
   - RULE-SET,google_domain,Google
@@ -222,6 +230,9 @@ rule-providers:
   geolocation-!cn:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.mrs"
+  google_fcm:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google-fcm.mrs"
   ad:
     <<: *domain
     url: "https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash.mrs"
