@@ -44,6 +44,11 @@ WebUI 访问：
 
 Secret：默认为空（建议在 config 中修改）。
 
+## 🚦 特别需知
+由于上游issue：https://github.com/MetaCubeX/mihomo/issues/1362
+
+如果您使用的是flyme系统，请直接用box4
+
 ## 🤝 鸣谢
 Mihomo : 强大的上游核心。
 
