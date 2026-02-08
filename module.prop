@@ -1,7 +1,7 @@
 id=Maodie-Launcher
 name=Maodie Launcher
-version=v20260207-c92704e
-versionCode=20260207
+version=v20260208-23fd479
+versionCode=20260208
 author=Maodie
 description=哈!
 updateJson=https://raw.githubusercontent.com/SherlockChiang/Maodie-Launcher/main/update.json
