@@ -6,7 +6,7 @@ log-level: info
 ipv6: true
 unified-delay: true
 tcp-concurrent: true
-external-controller: 0.0.0.0:9090
+external-controller: 127.0.0.1:9090
 secret: ""    
 
 external-ui: /data/adb/modules/Maodie-Launcher/maodie/config/webui
@@ -23,6 +23,7 @@ tun:
     - com.tencent.mm
   dns-hijack:
     - any:53
+    - tcp://any:53
   mtu: 9000 
 
 dns:
@@ -177,16 +178,18 @@ rules:
   - RULE-SET,private_domain,直连
   - RULE-SET,tencent_domain,直连
   - RULE-SET,cn_domain,直连
-  - RULE-SET,cn_ip,直连,no-resolve
+
   - RULE-SET,google_fcm,Google_fcm
   - RULE-SET,github_domain,Github
   - RULE-SET,microsoft_domain,Microsoft
   - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
   - RULE-SET,geolocation-!cn,默认
+  
+  - RULE-SET,cn_ip,直连,no-resolve
   - RULE-SET,google_ip,Google
   - RULE-SET,telegram_ip,Telegram
-  
+
   - MATCH,其他
 
 # 规则集定义锚点
