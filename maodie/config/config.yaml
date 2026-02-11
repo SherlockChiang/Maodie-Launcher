@@ -24,7 +24,7 @@ tun:
   dns-hijack:
     - any:53
     - tcp://any:53
-  mtu: 9000 
+  mtu: 1500 
 
 dns:
   enable: true
@@ -185,7 +185,7 @@ rules:
   - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
   - RULE-SET,geolocation-!cn,默认
-  
+
   - RULE-SET,cn_ip,直连,no-resolve
   - RULE-SET,google_ip,Google
   - RULE-SET,telegram_ip,Telegram
