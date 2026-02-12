@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.241.0
+📦 **手动发布**
+- 版本: v20260212-8ec29d1
+- 基础 Commit: 8ec29d1
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260210-af42170
+- modify mtu (8ec29d1)
+- 规范化规则顺序 (9b5b8b4)
