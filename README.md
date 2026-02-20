@@ -47,13 +47,15 @@ Secret：默认为空（建议在 config 中修改）。
 ## 🚦 特别需知
 由于上游issue：https://github.com/MetaCubeX/mihomo/issues/1362
 
-如果您使用的是flyme系统，请直接用box4
+如果您使用的是flyme系统，请直接用box4magisk模块
 
 ## 🤝 鸣谢
-Mihomo : 强大的上游核心。
 
-MetaCubeXD: 优秀的 Web 控制面板。
+* **[Mihomo (MetaCubeX)](https://github.com/metacubex/mihomo)**: 强大的上游核心。
+* **[MetaCubeXD](https://github.com/metacubex/metacubexd)**: 优秀的 Web 控制面板。
+* **[KernelSU](https://github.com/tiann/KernelSU)** / **[Magisk](https://github.com/topjohnwu/Magisk)**: 模块的运行环境支持。
+* Maodie: 哎呦喂小白手套呦好胖好可爱。
 
-Maodie: 哎呦喂小白手套呦好胖好可爱。
+**如果这个模块对您有帮助，请不要忘记去给上游项目点一个 ⭐ Star！**
 
-**如果您喜欢这个模块，请给我一个star⭐，这对我非常重要！**
+最后，如果您喜欢这个模块，也请给我一个star⭐，这对我非常重要！
