@@ -57,8 +57,8 @@ sniffer:
       ports: [80, 8080-8880]
     TLS:
       ports: [443, 8443]
-    QUIC:
-      ports: [443, 8443]
+    # QUIC:
+    #   ports: [443, 8443]
   skip-domain:
     - Mijia Cloud
 
@@ -167,6 +167,8 @@ proxy-groups:
 # 分流规则
 rules:
   # - DST-PORT,53,DNS_Hijack
+  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT
+  - AND,((NETWORK,UDP),(DST-PORT,8443)),REJECT
   - RULE-SET,ad,REJECT
 
   - RULE-SET,private_ip,直连,no-resolve
