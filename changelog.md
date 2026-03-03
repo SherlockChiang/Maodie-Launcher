@@ -1,8 +1,6 @@
-🎨 **面板更新**
-- 版本: v1.241.3
+📦 **手动发布**
+- 版本: v20260302-5c81a1b
+- 基础 Commit: 5c81a1b
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (ddb35f6)
-- enable override-destination in sniffer (9598ba5)
-
-📌 **Release Tag**: v20260228-ddb35f6
+- 暂时禁用QUIC (5c81a1b)
