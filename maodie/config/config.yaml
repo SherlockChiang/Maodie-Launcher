@@ -17,6 +17,7 @@ tun:
   stack: system 
   device: utun 
   auto-route: true 
+  strict-route: false 
   auto-detect-interface: true 
   dns-hijack:
     - any:53
@@ -28,37 +29,35 @@ dns:
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   fake-ip-filter:
-    - '*.lan'
-    - '*.local'
-    - '*.localhost'
-    - '+.stun.*'
-    - '+.stun.*.*'
+    - "rule-set:private_domain"
+    - "rule-set:cn_domain"
+    - "rule-set:google_fcm"
 
   default-nameserver:
     - 223.6.6.6
     - 119.29.29.29
   direct-nameserver:
-    - https://120.53.53.53/dns-query
-    - https://223.5.5.5/dns-query
+    - 223.6.6.6
+    - 119.29.29.29
   proxy-server-nameserver:
     - https://120.53.53.53/dns-query
     - https://223.5.5.5/dns-query
   nameserver:
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.google/dns-query
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
 
 sniffer:
   enable: true
   force-dns-mapping: true
-  parse-pure-ip: true
-  override-destination: true
+  override-destination: false
   sniff:
     HTTP:
       ports: [80, 8080-8880]
+      override-destination: true
     TLS:
       ports: [443, 8443]
-    # QUIC:
-    #   ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
   skip-domain:
     - Mijia Cloud
 
@@ -93,7 +92,7 @@ proxy-providers:
 proxy-groups:
   - name: 默认
     type: select
-    proxies: [自动选择, 香港, 日本, 美国, 全部节点, 直连]
+    proxies: [香港, 日本, 美国, 全部节点, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Airport.png"
 
   - name: Google
@@ -131,21 +130,21 @@ proxy-groups:
     type: url-test
     include-all: true
     filter: "(?i)港|hk|hongkong|hong kong"
-    tolerance: 50
+    tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/HK.png"
 
   - name: 日本
     type: url-test
     include-all: true
     filter: "(?i)(?=.*(?:日本|jp|japan))^(?!.*(?:HY|RLY)).*"
-    tolerance: 50
+    tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/JP.png"
 
   - name: 美国
     type: url-test
     include-all: true
     filter: "(?i)(?=.*(?:美国|us))^(?!.*(?:HY|RLY)).*"
-    tolerance: 50
+    tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/US.png"
 
   - name: 全部节点
@@ -154,21 +153,10 @@ proxy-groups:
     filter: "^(?!.*(剩余|到期|官网|重置)).*" # 过滤掉非节点信息
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Server.png"
 
-  - name: 自动选择
-    type: url-test
-    include-all: true
-    url: "https://cp.cloudflare.com"
-    interval: 300
-    tolerance: 50
-    filter: "^(?!.*(剩余|到期|官网|重置)).*" # 过滤掉非节点信息
-    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Auto.png"
-
 
 # 分流规则
 rules:
   # - DST-PORT,53,DNS_Hijack
-  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT
-  - AND,((NETWORK,UDP),(DST-PORT,8443)),REJECT
   - RULE-SET,ad,REJECT
 
   - RULE-SET,private_ip,直连,no-resolve
@@ -180,12 +168,12 @@ rules:
   - RULE-SET,microsoft_domain,Microsoft
   - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
-  - RULE-SET,geolocation-!cn,默认
 
   - RULE-SET,cn_ip,直连,no-resolve
   - RULE-SET,google_ip,Google
   - RULE-SET,telegram_ip,Telegram
 
+  - RULE-SET,geolocation-!cn,默认
   - MATCH,其他
 
 # 规则集定义锚点
