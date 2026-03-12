@@ -1,6 +1,7 @@
-📦 **手动发布**
-- 版本: v20260302-5c81a1b
-- 基础 Commit: 5c81a1b
+🚀 **内核更新**
+- 版本: v1.19.21
 
 ### 📝 变更日志 (Changelog):
-- 暂时禁用QUIC (5c81a1b)
+- (No new commits)
+
+📌 **Release Tag**: v20260310-c8903c3
