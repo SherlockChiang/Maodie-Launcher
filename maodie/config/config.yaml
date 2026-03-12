@@ -43,7 +43,7 @@ dns:
     - https://dns.cloudflare.com/dns-query
     - https://dns.google/dns-query
   nameserver-policy:
-    "rule-set:private-domain,cn_domain":
+    "rule-set:private_domain,cn_domain":
       - https://120.53.53.53/dns-query
       - https://223.5.5.5/dns-query
 
