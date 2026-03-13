@@ -28,11 +28,12 @@ dns:
   listen: 0.0.0.0:1053
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
+  respect-rules: true
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
     - "rule-set:google_fcm"
-
+  
   default-nameserver:
     - https://120.53.53.53/dns-query
     - https://223.5.5.5/dns-query
@@ -50,6 +51,7 @@ dns:
 sniffer:
   enable: true
   force-dns-mapping: true
+  parse-pure-ip: true
   override-destination: false
   sniff:
     HTTP:
