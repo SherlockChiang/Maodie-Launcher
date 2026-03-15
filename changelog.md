@@ -1,7 +1,7 @@
-📦 **手动发布**
-- 版本: v20260313-b7894d1
-- 基础 Commit: b7894d1
+🎨 **面板更新**
+- 版本: v1.243.0
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (b7894d1)
-- enable parse-pure-ip (4ea7940)
+- (No new commits)
+
+📌 **Release Tag**: v20260315-49e5bf9
