@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.243.0
+📦 **手动发布**
+- 版本: v20260317-e38309b
+- 基础 Commit: e38309b
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260315-49e5bf9
+- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (e38309b)
+- change sniffer config (e78aeaf)
