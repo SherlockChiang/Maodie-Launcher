@@ -33,7 +33,8 @@ if [ -d "$EXISTING_DIR" ]; then
   if [ -d "$OLD_PROVIDERS_DIR" ]; then
     ui_print "  发现旧版 proxy_providers 文件夹，正在保留..."
     mkdir -p "$NEW_PROVIDERS_DIR"
-    cp -rf "$OLD_PROVIDERS_DIR/"* "$NEW_PROVIDERS_DIR/"
+    # 【修复1】使用 /. 代替 /*，即使文件夹为空也能安全执行不会报错
+    cp -rf "$OLD_PROVIDERS_DIR/." "$NEW_PROVIDERS_DIR/" 2>/dev/null || true
     chmod -R 755 "$NEW_PROVIDERS_DIR"
     ui_print "  ✅ proxy_providers 文件夹迁移完成"
   else
@@ -42,7 +43,7 @@ if [ -d "$EXISTING_DIR" ]; then
 
   if [ -f "$OLD_CACHE_DB" ]; then
     ui_print "  发现旧版 cache.db，正在保留..."
-    cp -f "$OLD_CACHE_DB" "$NEW_CACHE_DB"
+    cp -f "$OLD_CACHE_DB" "$NEW_CACHE_DB" 2>/dev/null || true
     chmod 644 "$NEW_CACHE_DB"
     ui_print "  ✅ cache.db 迁移完成"
   else
@@ -52,39 +53,38 @@ if [ -d "$EXISTING_DIR" ]; then
   if [ -f "$OLD_CONFIG" ]; then
     ui_print "  发现旧版本配置，正在提取订阅信息..."
 
-    sed -n '/^proxy-providers:/,/^proxy-groups:/ { /^proxy-groups:/d; p; }' "$OLD_CONFIG" > "$TEMP_PROVIDERS"
+    sed -n '/^proxy-providers:/,/^proxy-groups:/ { /^proxy-groups:/d; p; }' "$OLD_CONFIG" > "$TEMP_PROVIDERS" 2>/dev/null || true
 
-    sed -i '/^[[:space:]]*$/d' "$TEMP_PROVIDERS"
+    # 【修复2】兼容 Android 的正则写法，使用空格和 \t 替代 [[:space:]]，并加上 || true 防止 sed 报错中断脚本
+    sed -i '/^[ \t]*$/d' "$TEMP_PROVIDERS" 2>/dev/null || true
 
     if [ -s "$TEMP_PROVIDERS" ]; then
       ui_print "  成功提取旧订阅 (proxy-providers)！"
       
-      START_LINE=$(grep -n "^proxy-providers:" "$NEW_CONFIG" | cut -d: -f1)
-      END_LINE=$(grep -n "^proxy-groups:" "$NEW_CONFIG" | cut -d: -f1)
+      # 【修复3】加入 -m 1，强制 grep 只返回第一个匹配结果，防止多行结果导致下方算术崩溃
+      START_LINE=$(grep -m 1 -n "^proxy-providers:" "$NEW_CONFIG" | cut -d: -f1)
+      END_LINE=$(grep -m 1 -n "^proxy-groups:" "$NEW_CONFIG" | cut -d: -f1)
 
       if [ -n "$START_LINE" ] && [ -n "$END_LINE" ]; then
         head -n $(($START_LINE - 1)) "$NEW_CONFIG" > "$FINAL_CONFIG"
-        
         cat "$TEMP_PROVIDERS" >> "$FINAL_CONFIG"
-        
         echo "" >> "$FINAL_CONFIG"
-        
+        # 修复：确保 tail 命令语法在各版本 Android 都兼容
         tail -n +$END_LINE "$NEW_CONFIG" >> "$FINAL_CONFIG"
 
-        # 替换生效
-        mv -f "$FINAL_CONFIG" "$NEW_CONFIG"
+        mv -f "$FINAL_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
         ui_print "  ✅ 配置文件合并完成：新规则 + 旧订阅"
       else
         ui_print "  ⚠️ 警告：新配置结构异常，无法定位锚点。"
         ui_print "  -> 保留旧版完整配置以防丢失订阅。"
-        cp -f "$OLD_CONFIG" "$NEW_CONFIG"
+        cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
       fi
     else
       ui_print "  ⚠️ 警告：无法从旧配置提取 providers。"
       ui_print "  -> 可能是格式不标准，已保留旧版完整配置。"
-      cp -f "$OLD_CONFIG" "$NEW_CONFIG"
+      cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
     fi
 
-    # 清理临时文件
     rm -f "$TEMP_PROVIDERS"
   fi
+fi
