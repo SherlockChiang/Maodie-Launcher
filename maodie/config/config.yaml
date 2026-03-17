@@ -59,10 +59,16 @@ sniffer:
       override-destination: true
     TLS:
       ports: [443, 8443]
-    QUIC:
-      ports: [443, 8443]
+    # QUIC:
+      # ports: [443, 8443]
   skip-domain:
-    - Mijia Cloud
+    - '*.xiaomi.com'
+    - '*.mi.com'
+    - '*.xiaomi.net'
+    - '*.xiaomi.cn'
+    - '*.qpic.cn'
+    - '*.weixin.qq.com'
+    - '*.tenpay.com'
 
 p: &p
   {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 900}}
