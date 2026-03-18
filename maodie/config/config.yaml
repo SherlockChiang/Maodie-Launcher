@@ -67,8 +67,17 @@ sniffer:
     - '*.xiaomi.net'
     - '*.xiaomi.cn'
     - '*.qpic.cn'
+    - '*.qlogo.cn' 
+    - '*.pic.imgcache.cn' 
+    - '*.tencent-cloud.net'
+    - '*.gtimg.cn'
+    - '*.wechat.com'
     - '*.weixin.qq.com'
     - '*.tenpay.com'
+    - '*.qq.com'
+    - '*.alicdn.com'
+    - '*.aliyun.com'
+    - '*.taobao.com'
 
 p: &p
   {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 900}}
