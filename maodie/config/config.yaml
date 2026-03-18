@@ -49,7 +49,7 @@ dns:
       - 119.29.29.29
 
 sniffer:
-  enable: true
+  enable: false
   force-dns-mapping: true
   parse-pure-ip: true
   override-destination: false
