@@ -78,6 +78,7 @@ sniffer:
     - '*.alicdn.com'
     - '*.aliyun.com'
     - '*.taobao.com'
+    - '*.zhihu.com'
 
 p: &p
   {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 900}}
