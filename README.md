@@ -49,6 +49,8 @@ Secret：默认为空（建议在 config 中修改）。
 
 如果您使用的是flyme系统，请直接用box4magisk模块
 
+目前的最新版本没有根据包名的规则所以也可以尝试一下
+
 ## 🤝 鸣谢
 
 * **[Mihomo (MetaCubeX)](https://github.com/metacubex/mihomo)**: 强大的上游核心。
