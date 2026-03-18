@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html class="mdui-theme-auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>订阅管理面板</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css">
+    <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
+
+    <style>
+        body { padding: 16px; font-family: system-ui, -apple-system, sans-serif; }
+        .container { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+        mdui-text-field { width: 100%; margin-bottom: 8px; }
+        .history-card { padding: 16px; border-radius: 16px; background-color: rgb(var(--mdui-color-surface-container-low)); }
+        .log-box { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; color: rgb(var(--mdui-color-on-surface-variant)); }
+        
+        /* 确保我们注入的 SVG 图标可以自动跟随系统动态变色 */
+        svg { fill: currentColor; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <mdui-top-app-bar variant="small">
+            <mdui-top-app-bar-title>订阅节点配置</mdui-top-app-bar-title>
+        </mdui-top-app-bar>
+
+        <mdui-card style="padding: 20px; border-radius: 24px;">
+            <div style="margin-bottom: 16px; color: rgb(var(--mdui-color-on-surface-variant)); font-size: 14px;">
+                修改后将自动重启内核生效。留空则保持原链接不变。
+            </div>
+            
+            <mdui-text-field id="url1" label="Provider 1 订阅地址">
+                <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></mdui-icon>
+            </mdui-text-field>
+            <mdui-text-field id="url2" label="Provider 2 订阅地址">
+                <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></mdui-icon>
+            </mdui-text-field>
+            <mdui-text-field id="url3" label="Provider 3 订阅地址">
+                <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></mdui-icon>
+            </mdui-text-field>
+
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <mdui-button id="saveBtn" style="flex: 1;">
+                    保存并重启
+                    <mdui-icon slot="end-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg></mdui-icon>
+                </mdui-button>
+                <mdui-button-icon id="refreshBtn" variant="tonal" title="刷新页面">
+                    <mdui-icon><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></mdui-icon>
+                </mdui-button-icon>
+            </div>
+        </mdui-card>
+
+        <div class="history-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin: 0; font-size: 16px;">修改记录</h3>
+                <mdui-button-icon id="clearLogBtn" variant="standard" title="清空记录">
+                    <mdui-icon><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/></svg></mdui-icon>
+                </mdui-button-icon>
+            </div>
+            <div id="logBox" class="log-box">正在加载...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { exec } from 'https://esm.sh/kernelsu';
+
+        const CONFIG_FILE = '/data/adb/modules/Maodie-Launcher/maodie/config/config.yaml';
+        const LOG_FILE = '/data/adb/modules/Maodie-Launcher/webroot/history.log';
+
+        const fetchCurrentUrl = async (provider) => {
+            const cmd = `sed -n '/${provider}:/,/interval:/s/^[[:space:]]*url:[[:space:]]*"\\(.*\\)"/\\1/p' ${CONFIG_FILE}`;
+            const { errno, stdout } = await exec(cmd);
+            return errno === 0 ? stdout.trim() : '';
+        };
+
+        const loadConfig = async () => {
+            document.getElementById('url1').value = await fetchCurrentUrl('provider1');
+            document.getElementById('url2').value = await fetchCurrentUrl('provider2');
+            document.getElementById('url3').value = await fetchCurrentUrl('provider3');
+        };
+
+        const loadHistory = async () => {
+            const { errno, stdout } = await exec(`cat ${LOG_FILE}`);
+            const logBox = document.getElementById('logBox');
+            if (errno === 0 && stdout.trim()) {
+                logBox.textContent = stdout;
+                logBox.scrollTop = logBox.scrollHeight;
+            } else {
+                logBox.textContent = "暂无修改记录...";
+            }
+        };
+
+        const appendHistory = async (message) => {
+            const time = new Date().toLocaleString();
+            const logStr = `[${time}] ${message}\n`;
+            await exec(`echo "${logStr}" >> ${LOG_FILE}`);
+        };
+
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('saveBtn');
+            btn.loading = true; 
+
+            const urls = {
+                provider1: document.getElementById('url1').value.trim(),
+                provider2: document.getElementById('url2').value.trim(),
+                provider3: document.getElementById('url3').value.trim()
+            };
+
+            let updatedCount = 0;
+
+            for (const [provider, url] of Object.entries(urls)) {
+                if (!url) continue;
+                
+                const oldUrl = await fetchCurrentUrl(provider);
+                if (oldUrl === url) continue; 
+
+                const cmd = `sed -i '/${provider}:/,/interval:/ s|url: ".*"|url: "${url}"|' ${CONFIG_FILE}`;
+                const { errno } = await exec(cmd);
+                
+                if (errno === 0) {
+                    await appendHistory(`更新 ${provider}: 成功`);
+                    updatedCount++;
+                }
+            }
+
+            if (updatedCount > 0) {
+                await appendHistory(`执行内核重启`);
+                await exec('killall mihomo 2>/dev/null');
+                await exec('killall clash 2>/dev/null');
+                mdui.snackbar({ message: "保存成功，内核已重启" });
+            } else {
+                mdui.snackbar({ message: "未检测到链接变更" });
+            }
+
+            await loadHistory();
+            btn.loading = false;
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', async () => {
+            await loadConfig();
+            await loadHistory();
+            mdui.snackbar({ message: "数据已刷新" });
+        });
+
+        document.getElementById('clearLogBtn').addEventListener('click', async () => {
+            await exec(`rm -f ${LOG_FILE}`);
+            await loadHistory();
+            mdui.snackbar({ message: "记录已清空" });
+        });
+
+        window.onload = async () => {
+            await loadConfig();
+            await loadHistory();
+        };
+    </script>
+</body>
+</html>
