@@ -12,6 +12,11 @@ secret: ""
 external-ui: /data/adb/modules/Maodie-Launcher/maodie/config/webui
 external-ui-url: /ui
 
+geo-auto-update: true
+geo-update-interval: 72  
+geox-url:
+  asn: "https://testingcf.jsdelivr.net/gh/Loyalsoldier/geoip@release/GeoLite2-ASN.mmdb"
+
 tun:
   enable: true
   stack: system 
@@ -177,7 +182,7 @@ proxy-groups:
 rules:
   # - DST-PORT,53,DNS_Hijack
   - RULE-SET,ad,REJECT
-
+  - IP-ASN,132203,直连,no-resolve
   - RULE-SET,private_domain,直连
   - RULE-SET,cn_domain,直连
 

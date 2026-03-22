@@ -201,6 +201,7 @@ jobs:
         run: |
           mkdir -p maodie/run
           
+          wget -q -O maodie/config/ASN.mmdb "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-ASN.mmdb"
           # 1. 定义文件名
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
           
