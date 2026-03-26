@@ -169,28 +169,69 @@
         };
 
         // 切换 DNS 逻辑
+        // 切换 DNS 逻辑（采用 100% 安全的逐行扫描算法）
         const switchDns = async (mode) => {
             let configText = await fetchConfigText();
-            if (!configText) return;
-
-            // 正则：精准匹配整个 dns: 区块，直到遇到下一个顶格写的 key 或文件末尾
-            const dnsBlockRegex = /^dns:[\s\S]*?(?=^[a-zA-Z_-]+:|$)/m;
-            const newBlock = mode === 'agh' ? DNS_AGH : DNS_DEFAULT;
-
-            if (dnsBlockRegex.test(configText)) {
-                configText = configText.replace(dnsBlockRegex, newBlock + '\n\n');
-                await saveConfigText(configText);
-                
-                await appendHistory(`DNS切换: 成功变更为 ${mode === 'agh' ? 'AGH伴生' : '默认'} 模式`);
-                await exec('killall mihomo 2>/dev/null');
-                await exec('killall clash 2>/dev/null');
-                
-                mdui.snackbar({ message: "DNS已切换，内核自动重启中" });
-                await checkDnsState();
-                await loadHistory();
-            } else {
-                mdui.snackbar({ message: "错误：未在配置文件中找到 dns: 区块" });
+            if (!configText) {
+                mdui.snackbar({ message: "错误：无法读取配置文件" });
+                return;
             }
+
+            const newBlock = mode === 'agh' ? DNS_AGH : DNS_DEFAULT;
+            
+            // 将整个配置文件按行切分开，兼容各种乱七八糟的换行符
+            const lines = configText.split(/\r?\n/);
+            const newLines = [];
+            let inDnsBlock = false;
+            let dnsInserted = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // 扫描到旧的 dns: 块开头
+                if (line === 'dns:' || line.startsWith('dns: ')) {
+                    inDnsBlock = true;
+                    if (!dnsInserted) {
+                        newLines.push(newBlock); // 插入我们准备好的新区块
+                        dnsInserted = true;
+                    }
+                    continue; // 跳过旧的 dns: 这行
+                }
+
+                // 如果正在旧的 dns: 块内部
+                if (inDnsBlock) {
+                    // 检测是否遇到了下一个顶格写的主键（比如 sniffer:, proxy-groups:）
+                    // 只要是以字母/数字开头且带有冒号的，就是新区块
+                    if (/^[a-zA-Z0-9_-]+:/.test(line)) {
+                        inDnsBlock = false; // 结束屏蔽
+                        newLines.push(line); // 把新区块的标题加进去
+                    }
+                    // 否则（依然是空格缩进的旧 dns 配置），直接抛弃不管
+                    continue; 
+                }
+
+                // 不在旧 dns 块里的行，原封不动保留
+                newLines.push(line);
+            }
+
+            // 如果整个配置文件原本连 dns: 都没有，就追加到末尾
+            if (!dnsInserted) {
+                newLines.push('');
+                newLines.push(newBlock);
+            }
+
+            // 重新组合成完整的文本
+            const updatedText = newLines.join('\n');
+            
+            await saveConfigText(updatedText);
+            
+            await appendHistory(`DNS切换: 成功变更为 ${mode === 'agh' ? 'AGH伴生' : '默认'} 模式`);
+            await exec('killall mihomo 2>/dev/null');
+            await exec('killall clash 2>/dev/null');
+            
+            mdui.snackbar({ message: "DNS已切换，内核自动重启中" });
+            await checkDnsState();
+            await loadHistory();
         };
 
         document.getElementById('btnDnsDefault').addEventListener('click', () => switchDns('default'));
