@@ -1,6 +1,6 @@
 📦 **手动发布**
-- 版本: v20260318-eba7c12
-- 基础 Commit: eba7c12
+- 版本: v20260326-04d06ee
+- 基础 Commit: 04d06ee
 
 ### 📝 变更日志 (Changelog):
 - (No new commits)
