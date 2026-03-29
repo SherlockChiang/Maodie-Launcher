@@ -1,6 +1,7 @@
-📦 **手动发布**
-- 版本: v20260326-04d06ee
-- 基础 Commit: 04d06ee
+🎨 **面板更新**
+- 版本: v1.243.2
 
 ### 📝 变更日志 (Changelog):
 - (No new commits)
+
+📌 **Release Tag**: v20260329-b65b67e
