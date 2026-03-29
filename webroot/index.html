@@ -86,11 +86,10 @@
         const CONFIG_FILE = '/data/adb/modules/Maodie-Launcher/maodie/config/config.yaml';
         const LOG_FILE = '/data/adb/modules/Maodie-Launcher/webroot/history.log';
 
-        // 解决中文 Base64 编解码报错的问题
         const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
         const b64_to_utf8 = (str) => decodeURIComponent(escape(window.atob(str)));
 
-        // --- DNS 模板定义 ---
+        // 【严格修复】保证所有子项左侧至少有2个空格缩进
         const DNS_DEFAULT = `dns:
   enable: true
   listen: 0.0.0.0:1053
@@ -101,7 +100,6 @@
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
     - "rule-set:google_fcm"
-  
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
@@ -126,7 +124,6 @@
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
     - "rule-set:google_fcm"
-  
   default-nameserver:
     - 127.0.0.1:5591
   proxy-server-nameserver:
@@ -138,22 +135,18 @@
     "rule-set:private_domain,cn_domain":
       - 127.0.0.1:5591`;
 
-        // 核心：读取整个配置文件
+        // 全局文件读写操作
         const fetchConfigText = async () => {
             const { errno, stdout } = await exec(`cat ${CONFIG_FILE} | base64 -w 0`);
-            if (errno === 0 && stdout) {
-                return b64_to_utf8(stdout.trim());
-            }
-            return "";
+            return (errno === 0 && stdout) ? b64_to_utf8(stdout.trim()) : "";
         };
 
-        // 核心：写入整个配置文件
         const saveConfigText = async (text) => {
             const b64Str = utf8_to_b64(text);
             await exec(`echo -n "${b64Str}" | base64 -d > ${CONFIG_FILE}`);
         };
 
-        // 检查当前 DNS 状态并更新按钮 UI
+        // UI 状态检查
         const checkDnsState = async () => {
             const configText = await fetchConfigText();
             const btnDefault = document.getElementById('btnDnsDefault');
@@ -168,8 +161,7 @@
             }
         };
 
-        // 切换 DNS 逻辑
-        // 切换 DNS 逻辑（采用 100% 安全的逐行扫描算法）
+        // --- 修复1：重新实现 DNS 切换的行级扫描，确保彻底移除旧数据 ---
         const switchDns = async (mode) => {
             let configText = await fetchConfigText();
             if (!configText) {
@@ -178,8 +170,6 @@
             }
 
             const newBlock = mode === 'agh' ? DNS_AGH : DNS_DEFAULT;
-            
-            // 将整个配置文件按行切分开，兼容各种乱七八糟的换行符
             const lines = configText.split(/\r?\n/);
             const newLines = [];
             let inDnsBlock = false;
@@ -188,42 +178,35 @@
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 
-                // 扫描到旧的 dns: 块开头
+                // 扫描到旧的顶格 dns:
                 if (line === 'dns:' || line.startsWith('dns: ')) {
                     inDnsBlock = true;
                     if (!dnsInserted) {
-                        newLines.push(newBlock); // 插入我们准备好的新区块
+                        newLines.push(newBlock);
                         dnsInserted = true;
                     }
-                    continue; // 跳过旧的 dns: 这行
-                }
-
-                // 如果正在旧的 dns: 块内部
-                if (inDnsBlock) {
-                    // 检测是否遇到了下一个顶格写的主键（比如 sniffer:, proxy-groups:）
-                    // 只要是以字母/数字开头且带有冒号的，就是新区块
-                    if (/^[a-zA-Z0-9_-]+:/.test(line)) {
-                        inDnsBlock = false; // 结束屏蔽
-                        newLines.push(line); // 把新区块的标题加进去
-                    }
-                    // 否则（依然是空格缩进的旧 dns 配置），直接抛弃不管
                     continue; 
                 }
 
-                // 不在旧 dns 块里的行，原封不动保留
+                if (inDnsBlock) {
+                    // 只要是空行、或存在空格缩进的行，就说明还在 dns 块的管辖内，丢弃掉
+                    if (line.trim() === '' || /^[ \t]+/.test(line)) {
+                        continue;
+                    }
+                    // 遇到了非空且没有缩进的行 (如 proxies: 等)，说明 dns 区块结束了
+                    inDnsBlock = false;
+                    newLines.push(line); 
+                    continue;
+                }
                 newLines.push(line);
             }
 
-            // 如果整个配置文件原本连 dns: 都没有，就追加到末尾
             if (!dnsInserted) {
-                newLines.push('');
+                if (newLines.length > 0 && newLines[newLines.length - 1].trim() !== '') newLines.push('');
                 newLines.push(newBlock);
             }
 
-            // 重新组合成完整的文本
-            const updatedText = newLines.join('\n');
-            
-            await saveConfigText(updatedText);
+            await saveConfigText(newLines.join('\n'));
             
             await appendHistory(`DNS切换: 成功变更为 ${mode === 'agh' ? 'AGH伴生' : '默认'} 模式`);
             await exec('killall mihomo 2>/dev/null');
@@ -238,17 +221,34 @@
         document.getElementById('btnDnsAGH').addEventListener('click', () => switchDns('agh'));
 
 
-        // --- 原有订阅逻辑 ---
-        const fetchCurrentUrl = async (provider) => {
-            const cmd = `sed -n '/${provider}:/,/interval:/s/^[[:space:]]*url:[[:space:]]*"\\(.*\\)"/\\1/p' ${CONFIG_FILE}`;
-            const { errno, stdout } = await exec(cmd);
-            return errno === 0 ? stdout.trim() : '';
+        // --- 修复2：不再使用容易出错的 sed，改用 JS 内存解析和替换 URL ---
+        const getProviderUrl = (text, provider) => {
+            // 正则匹配 provider 块里的第一个 url 属性
+            const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
+            const match = text.match(regex);
+            if (match) {
+                let url = match[2].trim();
+                url = url.split('#')[0].trim(); // 去除中文注释
+                url = url.replace(/^["']|["']$/g, ''); // 兼容去引号
+                return url;
+            }
+            return '';
+        };
+
+        const updateProviderUrl = (text, provider, newUrl) => {
+            const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
+            if (regex.test(text)) {
+                // 强制添加双引号写入，并彻底覆盖掉本行的旧内容(包括旧注释)
+                return text.replace(regex, `$1"${newUrl}"`);
+            }
+            return text;
         };
 
         const loadConfig = async () => {
-            document.getElementById('url1').value = await fetchCurrentUrl('provider1');
-            document.getElementById('url2').value = await fetchCurrentUrl('provider2');
-            document.getElementById('url3').value = await fetchCurrentUrl('provider3');
+            const text = await fetchConfigText();
+            document.getElementById('url1').value = getProviderUrl(text, 'provider1');
+            document.getElementById('url2').value = getProviderUrl(text, 'provider2');
+            document.getElementById('url3').value = getProviderUrl(text, 'provider3');
         };
 
         const loadHistory = async () => {
@@ -272,6 +272,13 @@
             const btn = document.getElementById('saveBtn');
             btn.loading = true; 
 
+            let configText = await fetchConfigText();
+            if (!configText) {
+                mdui.snackbar({ message: "错误：无法读取配置文件" });
+                btn.loading = false;
+                return;
+            }
+
             const urls = {
                 provider1: document.getElementById('url1').value.trim(),
                 provider2: document.getElementById('url2').value.trim(),
@@ -283,19 +290,18 @@
             for (const [provider, url] of Object.entries(urls)) {
                 if (!url) continue;
                 
-                const oldUrl = await fetchCurrentUrl(provider);
+                const oldUrl = getProviderUrl(configText, provider);
                 if (oldUrl === url) continue; 
 
-                const cmd = `sed -i '/${provider}:/,/interval:/ s|url: ".*"|url: "${url}"|' ${CONFIG_FILE}`;
-                const { errno } = await exec(cmd);
-                
-                if (errno === 0) {
-                    await appendHistory(`更新 ${provider}: 成功`);
-                    updatedCount++;
-                }
+                // 在 JS 变量中直接更新文本，安全且不会破坏其他结构
+                configText = updateProviderUrl(configText, provider, url);
+                await appendHistory(`更新 ${provider}: 成功`);
+                updatedCount++;
             }
 
             if (updatedCount > 0) {
+                // 统一执行一次保存
+                await saveConfigText(configText);
                 await appendHistory(`执行内核重启`);
                 await exec('killall mihomo 2>/dev/null');
                 await exec('killall clash 2>/dev/null');
