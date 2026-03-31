@@ -28,7 +28,7 @@
 
 🔌 KSU 联动： 无需重启手机。在 KernelSU/Magisk 管理器中点击按钮关闭模块，代理即刻停止；点击开启后，服务就会恢复。
 
-🌐 内置 WebUI： 支持集成 MetaCubeXD 面板提高审美。
+🌐 内置 WebUI： 支持集成 MetaCubeXD 面板提高审美，适配ksu面板进行dns模式切换、provider切换。
 
 🤖 可莉不知道哦： 本人不了解任何fq技术，完全由Gemini生成。
 
@@ -50,6 +50,8 @@ Secret：默认为空（建议在 config 中修改）。
 如果您使用的是flyme系统，请直接用box4magisk模块
 
 目前的最新版本没有根据包名的规则所以也可以尝试一下
+
+去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于beta阶段，欢迎测试
 
 ## 🤝 鸣谢
 
