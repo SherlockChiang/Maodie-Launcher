@@ -35,10 +35,12 @@ echo "System ready. Starting core and monitor..." >> "$LOG_FILE"
 # 3. 权限上险，确保脚本可执行
 chmod +x "$SCRIPT_DIR/core.sh" 2>/dev/null
 chmod +x "$SCRIPT_DIR/monitor.sh" 2>/dev/null
+chmod +x "$SCRIPT_DIR/NoAdsService.sh" 2>/dev/null 
 
 # 4. 启动脚本
 # 使用双引号包裹路径，后台静默执行
 nohup "$SCRIPT_DIR/core.sh" start > /dev/null 2>&1 &
 nohup "$SCRIPT_DIR/monitor.sh" > /dev/null 2>&1 &
+nohup "$SCRIPT_DIR/NoAdsService.sh" > /dev/null 2>&1 & 
 
 echo "Service script finished successfully." >> "$LOG_FILE"
