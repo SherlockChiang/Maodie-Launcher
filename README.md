@@ -51,7 +51,7 @@ Secret：默认为空（建议在 config 中修改）。
 
 目前的最新版本没有根据包名的规则所以也可以尝试一下
 
-去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于beta阶段，欢迎测试
+去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于beta阶段，欢迎测试**由于上游变动较大谨慎测试，目前本模块已经缝合了去广告模块的部分功能**
 
 ## 🤝 鸣谢
 
