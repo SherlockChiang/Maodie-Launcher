@@ -46,8 +46,8 @@ dns:
     - 223.5.5.5
     - 119.29.29.29
   nameserver:
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.google/dns-query
+    - https://dns.cloudflare.com/dns-query#h3
+    - https://dns.google/dns-query#h3
   nameserver-policy:
     "rule-set:private_domain,cn_domain":
       - 223.5.5.5
@@ -86,7 +86,7 @@ sniffer:
     - '*.zhihu.com'
 
 p: &p
-  {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 900}}
+  {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 300}}
 
 proxies: 
   - name: "直连"
@@ -182,7 +182,6 @@ proxy-groups:
 rules:
   # - DST-PORT,53,DNS_Hijack
   - RULE-SET,ad,REJECT
-  - IP-ASN,132203,直连,no-resolve
   - RULE-SET,private_domain,直连
   - RULE-SET,cn_domain,直连
 
@@ -192,6 +191,7 @@ rules:
   - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
 
+  - IP-ASN,132203,直连,no-resolve
   - RULE-SET,private_ip,直连,no-resolve
   - RULE-SET,cn_ip,直连,no-resolve
   - RULE-SET,google_ip,Google
