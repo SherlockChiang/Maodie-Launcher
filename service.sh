@@ -5,17 +5,28 @@
 MODDIR="$(dirname "$0")"
 SCRIPT_DIR="$MODDIR/maodie/scripts"
 LOG_FILE="$MODDIR/maodie/run/service.log"
+KERNEL_BIN="$MODDIR/maodie/kernel/Mihomo"
 
 # 初始化运行环境
 mkdir -p "$MODDIR/maodie/run"
 echo "--- Service Started at $(date) ---" > "$LOG_FILE"
 
+# 0. 前置检查：核心二进制和配置文件是否存在
+if [ ! -f "$KERNEL_BIN" ]; then
+    echo "FATAL: Kernel binary missing: $KERNEL_BIN" >> "$LOG_FILE"
+    exit 1
+fi
+if [ ! -f "$MODDIR/maodie/config/config.yaml" ]; then
+    echo "FATAL: Config file missing." >> "$LOG_FILE"
+    exit 1
+fi
+
 # 1. 等待系统启动完成标志 (兼容旧标准)
-# Magisk/KSU 的 late_start 阶段通常系统已启动，但加个保险是好习惯
 echo "Waiting for boot_completed..." >> "$LOG_FILE"
 until [ "$(getprop sys.boot_completed)" = "1" ]; do
   sleep 2
 done
+echo "Boot completed." >> "$LOG_FILE"
 
 # 2. 网络栈检测 (通用)
 echo "Checking loopback network..." >> "$LOG_FILE"
@@ -23,24 +34,29 @@ wait_count=0
 while ! ping -c 1 -W 1 127.0.0.1 >/dev/null 2>&1; do
     sleep 1
     wait_count=$((wait_count+1))
-    # 增加超时时间到 90秒，照顾老旧卡顿机型
-    if [ $wait_count -gt 90 ]; then 
+    if [ $wait_count -gt 90 ]; then
         echo "Warning: Network stack timeout! Forcing start anyway." >> "$LOG_FILE"
         break
-    fi 
+    fi
 done
 
 echo "System ready. Starting core and monitor..." >> "$LOG_FILE"
 
-# 3. 权限上险，确保脚本可执行
+# 3. 确保脚本可执行
 chmod +x "$SCRIPT_DIR/core.sh" 2>/dev/null
 chmod +x "$SCRIPT_DIR/monitor.sh" 2>/dev/null
-chmod +x "$SCRIPT_DIR/NoAdsService.sh" 2>/dev/null 
+chmod +x "$SCRIPT_DIR/NoAdsService.sh" 2>/dev/null
 
-# 4. 启动脚本
-# 使用双引号包裹路径，后台静默执行
-nohup "$SCRIPT_DIR/core.sh" start > /dev/null 2>&1 &
-nohup "$SCRIPT_DIR/monitor.sh" > /dev/null 2>&1 &
-nohup "$SCRIPT_DIR/NoAdsService.sh" > /dev/null 2>&1 & 
+# 4. 启动核心（前台等待确认启动成功）
+sh "$SCRIPT_DIR/core.sh" start >> "$LOG_FILE" 2>&1
+if [ $? -eq 0 ]; then
+    echo "Core started successfully." >> "$LOG_FILE"
+else
+    echo "Warning: Core may have failed to start." >> "$LOG_FILE"
+fi
 
-echo "Service script finished successfully." >> "$LOG_FILE"
+# 5. 启动监控和去广告服务（后台）
+nohup sh "$SCRIPT_DIR/monitor.sh" >> "$LOG_FILE" 2>&1 &
+nohup sh "$SCRIPT_DIR/NoAdsService.sh" >> "$LOG_FILE" 2>&1 &
+
+echo "--- Service script finished at $(date) ---" >> "$LOG_FILE"

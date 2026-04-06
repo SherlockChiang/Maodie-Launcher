@@ -209,16 +209,25 @@
             await saveConfigText(newLines.join('\n'));
             
             await appendHistory(`DNS切换: 成功变更为 ${mode === 'agh' ? 'AGH伴生' : '默认'} 模式`);
-            await exec('killall mihomo 2>/dev/null');
-            await exec('killall clash 2>/dev/null');
-            
+            await exec('killall Mihomo 2>/dev/null; killall mihomo 2>/dev/null');
+
             mdui.snackbar({ message: "DNS已切换，内核自动重启中" });
             await checkDnsState();
             await loadHistory();
         };
 
-        document.getElementById('btnDnsDefault').addEventListener('click', () => switchDns('default'));
-        document.getElementById('btnDnsAGH').addEventListener('click', () => switchDns('agh'));
+        document.getElementById('btnDnsDefault').addEventListener('click', async () => {
+            const btn = document.getElementById('btnDnsDefault');
+            btn.loading = true;
+            await switchDns('default');
+            btn.loading = false;
+        });
+        document.getElementById('btnDnsAGH').addEventListener('click', async () => {
+            const btn = document.getElementById('btnDnsAGH');
+            btn.loading = true;
+            await switchDns('agh');
+            btn.loading = false;
+        });
 
 
         // --- 修复2：不再使用容易出错的 sed，改用 JS 内存解析和替换 URL ---
@@ -264,8 +273,10 @@
 
         const appendHistory = async (message) => {
             const time = new Date().toLocaleString();
-            const logStr = `[${time}] ${message}\n`;
-            await exec(`echo "${logStr}" >> ${LOG_FILE}`);
+            const logStr = `[${time}] ${message}`;
+            // 使用 base64 编码避免 shell 注入
+            const b64Log = utf8_to_b64(logStr + '\n');
+            await exec(`echo -n "${b64Log}" | base64 -d >> ${LOG_FILE}`);
         };
 
         document.getElementById('saveBtn').addEventListener('click', async () => {
@@ -303,8 +314,7 @@
                 // 统一执行一次保存
                 await saveConfigText(configText);
                 await appendHistory(`执行内核重启`);
-                await exec('killall mihomo 2>/dev/null');
-                await exec('killall clash 2>/dev/null');
+                await exec('killall Mihomo 2>/dev/null; killall mihomo 2>/dev/null');
                 mdui.snackbar({ message: "保存成功，内核已重启" });
             } else {
                 mdui.snackbar({ message: "未检测到链接变更" });
@@ -315,9 +325,12 @@
         });
 
         document.getElementById('refreshBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('refreshBtn');
+            btn.loading = true;
             await loadConfig();
             await checkDnsState();
             await loadHistory();
+            btn.loading = false;
             mdui.snackbar({ message: "数据已刷新" });
         });
 

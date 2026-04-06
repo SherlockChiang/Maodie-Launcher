@@ -1,12 +1,30 @@
 #!/system/bin/sh
 # Maodie Launcher - 物理级去广告防线 (Physical AdBlocker)
-# inspried by https://github.com/liuzq2002/Adguard-Home-For-Magisk-Mod
+# inspired by https://github.com/liuzq2002/Adguard-Home-For-Magisk-Mod
 
-# 防止重复启动
-[ $(pgrep -f "$0" | wc -l) -gt 1 ] && exit
+MOD_DIR="/data/adb/modules/Maodie-Launcher"
+LOG_FILE="$MOD_DIR/maodie/run/adblock.log"
+LOCK_FILE="$MOD_DIR/maodie/run/adblock.lock"
+
+# 防止重复启动（使用 lock 文件，比 pgrep 更可靠）
+if [ -f "$LOCK_FILE" ]; then
+    old_pid=$(cat "$LOCK_FILE" 2>/dev/null)
+    if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        exit 0
+    fi
+fi
+echo $$ > "$LOCK_FILE"
+
+# 退出时清理 lock 文件
+trap 'rm -f "$LOCK_FILE"; exit 0' INT TERM
+
+mkdir -p "$MOD_DIR/maodie/run"
+echo "$(date): NoAdsService started (PID: $$)." > "$LOG_FILE"
+
+blocked_count=0
 
 # 广告屏蔽核心函数 (加入 2>/dev/null 容错，防止部分只读系统报错)
-block_ad() { 
+block_ad() {
     local target="$1"
     [ ! -e "$target" ] && return
     lsattr -d "$target" 2>/dev/null | grep -q "i.*$target" && return
@@ -16,13 +34,16 @@ block_ad() {
     else
         > "$target" 2>/dev/null
     fi
-    chattr +i "$target" 2>/dev/null || true
+    if chattr +i "$target" 2>/dev/null; then
+        blocked_count=$((blocked_count + 1))
+    fi
 }
 
 # 延迟 30 秒启动，把开机的 CPU 算力让给 Mihomo 和其他系统组件
 sleep 30
 
 while :; do
+    blocked_count=0
 
     # 添加完屏蔽路径以后必须重启手机生效
     # 美团外卖
@@ -154,6 +175,8 @@ while :; do
     # Coolapk
     block_ad "/data/data/com.coolapk.market/app_adnet/"
     
+
+    [ $blocked_count -gt 0 ] && echo "$(date): Patrol done, $blocked_count path(s) blocked." >> "$LOG_FILE"
 
     # 巡检间隔：1小时
     sleep 3600
