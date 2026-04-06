@@ -1,7 +1,6 @@
-🚀 **内核更新**
-- 版本: v1.19.22
+📦 **手动发布**
+- 版本: v20260403-3956029
+- 基础 Commit: 3956029
 
 ### 📝 变更日志 (Changelog):
-- Update README with caution for ad-blocking module (a186a7a)
-
-📌 **Release Tag**: v20260402-a186a7a
+- minor change (3956029)
