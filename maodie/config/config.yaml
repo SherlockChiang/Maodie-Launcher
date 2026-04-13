@@ -160,14 +160,14 @@ proxy-groups:
   - name: 日本
     type: url-test
     include-all: true
-    filter: "(?i)(?=.*(?:日本|jp|japan))^(?!.*(?:HY|RLY)).*"
+    filter: "(?i)日本|jp|japan"
     tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/JP.png"
 
   - name: 美国
     type: url-test
     include-all: true
-    filter: "(?i)(?=.*(?:美国|us))^(?!.*(?:HY|RLY)).*"
+    filter: "(?i)美国|us"
     tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/US.png"
 

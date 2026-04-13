@@ -85,6 +85,8 @@
 
         const CONFIG_FILE = '/data/adb/modules/Maodie-Launcher/maodie/config/config.yaml';
         const LOG_FILE = '/data/adb/modules/Maodie-Launcher/webroot/history.log';
+        const CORE_SCRIPT = '/data/adb/modules/Maodie-Launcher/maodie/scripts/core.sh';
+        const restartKernel = () => exec(`sh ${CORE_SCRIPT} restart`);
 
         const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
         const b64_to_utf8 = (str) => decodeURIComponent(escape(window.atob(str)));
@@ -209,7 +211,7 @@
             await saveConfigText(newLines.join('\n'));
             
             await appendHistory(`DNS切换: 成功变更为 ${mode === 'agh' ? 'AGH伴生' : '默认'} 模式`);
-            await exec('killall Mihomo 2>/dev/null; killall mihomo 2>/dev/null');
+            await restartKernel();
 
             mdui.snackbar({ message: "DNS已切换，内核自动重启中" });
             await checkDnsState();
@@ -314,7 +316,7 @@
                 // 统一执行一次保存
                 await saveConfigText(configText);
                 await appendHistory(`执行内核重启`);
-                await exec('killall Mihomo 2>/dev/null; killall mihomo 2>/dev/null');
+                await restartKernel();
                 mdui.snackbar({ message: "保存成功，内核已重启" });
             } else {
                 mdui.snackbar({ message: "未检测到链接变更" });

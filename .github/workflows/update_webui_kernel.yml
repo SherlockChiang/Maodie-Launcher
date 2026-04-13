@@ -20,7 +20,7 @@ permissions:
 jobs:
   process-and-release:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -29,43 +29,43 @@ jobs:
           fetch-depth: 0
 
       # ==========================================
-      # 步骤 1 & 2: 下载更新 (逻辑保持不变)
+      # 步骤 1 & 2: 下载更新
       # ==========================================
       - name: Update MetaCubeXD
         id: webui
         if: github.event.inputs.job_type != 'force_release'
         run: |
-          echo "🔍 检查 MetaCubeXD..."
-          API_URL="https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest"
-          LATEST_DATA=$(curl -s $API_URL)
-          VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "ver=$VERSION" >> $GITHUB_OUTPUT
-          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'compressed-dist.tgz' | cut -d '"' -f 4)
-          echo "$DOWNLOAD_URL" | xargs wget -q -O webui.tgz
+          echo “🔍 检查 MetaCubeXD...”
+          LATEST_DATA=$(curl -sf “https://api.github.com/repos/MetaCubeX/metacubexd/releases/latest”) || { echo “❌ API 请求失败”; exit 1; }
+          VERSION=$(echo “$LATEST_DATA” | jq -r '.tag_name')
+          DOWNLOAD_URL=$(echo “$LATEST_DATA” | jq -r '.assets[] | select(.name | test(“compressed-dist\\.tgz”)) | .browser_download_url')
+          echo “ver=$VERSION” >> $GITHUB_OUTPUT
+
+          wget -q -O webui.tgz “$DOWNLOAD_URL” || { echo “❌ 下载失败”; exit 1; }
           mkdir -p temp_webui
           tar -xzf webui.tgz -C temp_webui
-          TARGET_DIR="maodie/config/webui"
-          mkdir -p "$TARGET_DIR"
-          rm -rf "$TARGET_DIR"/*
-          cp -r temp_webui/* "$TARGET_DIR"/
+
+          TARGET_DIR=”maodie/config/webui”
+          rm -rf “$TARGET_DIR”
+          mkdir -p “$TARGET_DIR”
+          cp -r temp_webui/* “$TARGET_DIR”/
           rm -rf temp_webui webui.tgz
 
       - name: Update Mihomo Kernel
         id: kernel
         if: github.event.inputs.job_type != 'force_release'
         run: |
-          echo "🔍 检查 Mihomo Kernel..."
-          API_URL="https://api.github.com/repos/MetaCubeX/mihomo/releases/latest"
-          LATEST_DATA=$(curl -s $API_URL)
-          VERSION=$(echo "$LATEST_DATA" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "ver=$VERSION" >> $GITHUB_OUTPUT
-          DOWNLOAD_URL=$(echo "$LATEST_DATA" | grep 'browser_download_url' | grep 'android-arm64' | grep '.gz"' | cut -d '"' -f 4)
-          echo "$DOWNLOAD_URL" | xargs wget -q -O Mihomo.gz
+          echo “🔍 检查 Mihomo Kernel...”
+          LATEST_DATA=$(curl -sf “https://api.github.com/repos/MetaCubeX/mihomo/releases/latest”) || { echo “❌ API 请求失败”; exit 1; }
+          VERSION=$(echo “$LATEST_DATA” | jq -r '.tag_name')
+          DOWNLOAD_URL=$(echo “$LATEST_DATA” | jq -r '.assets[] | select(.name | test(“android-arm64.*\\.gz$”)) | .browser_download_url')
+          echo “ver=$VERSION” >> $GITHUB_OUTPUT
+
+          wget -q -O Mihomo.gz “$DOWNLOAD_URL” || { echo “❌ 下载失败”; exit 1; }
           gzip -d Mihomo.gz
           chmod +x Mihomo
-          TARGET_DIR="maodie/kernel"
-          mkdir -p "$TARGET_DIR"
-          mv -f Mihomo "$TARGET_DIR/Mihomo"
+          mkdir -p maodie/kernel
+          mv -f Mihomo maodie/kernel/Mihomo
 
       # ==========================================
       # 步骤 3: 核心逻辑 (含 Commit 提取功能)
@@ -75,159 +75,148 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          MODE="${{ github.event.inputs.job_type }}"
-          if [ -z "$MODE" ]; then MODE="check_update"; fi
-          
-          SHORT_HASH=$(git rev-parse --short HEAD)
-          TAG_NAME="v$(date +'%Y%m%d')-${SHORT_HASH}"
-          
-          # --- 核心新增：提取 Git 变更日志 ---
-          echo "📜 正在生成 Commit 日志..."
-          
-          # 1. 尝试找到上一个 Tag
-          # 2>/dev/null 屏蔽错误信息 (如果是第一次发版可能找不到 tag)
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          
-          if [ -z "$PREV_TAG" ]; then
-            echo "  未找到旧标签，列出最近 10 条记录。"
-            # 格式：- 提交信息 (ShortHash)
-            COMMIT_LOGS=$(git log --pretty=format:"- %s (%h)" -n 10)
-          else
-            echo "  对比区间: $PREV_TAG...HEAD"
-            COMMIT_LOGS=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
-          fi
-          
-          # 如果日志为空 (比如刚发版完又跑了一次)，给个提示
-          if [ -z "$COMMIT_LOGS" ]; then
-            COMMIT_LOGS="- (No new commits)"
-          fi
-          
-          # ------------------------------------
 
-          SHOULD_RELEASE="false"
-          COMMIT_MSG=""
-          BODY=""
+          MODE=”${{ github.event.inputs.job_type }}”
+          : “${MODE:=check_update}”
+
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          TAG_NAME=”v$(date +'%Y%m%d')-${SHORT_HASH}”
+
+          # --- 提取 Git 变更日志 ---
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -z “$PREV_TAG” ]; then
+            COMMIT_LOGS=$(git log --pretty=format:”- %s (%h)” -n 10)
+          else
+            COMMIT_LOGS=$(git log --pretty=format:”- %s (%h)” “$PREV_TAG”..HEAD)
+          fi
+          : “${COMMIT_LOGS:=- (No new commits)}”
+
+          SHOULD_RELEASE=”false”
+          COMMIT_MSG=””
 
           # --- 分支逻辑 ---
-          if [ "$MODE" == "force_release" ]; then
-            echo "🚀 强制发布模式"
-            SHOULD_RELEASE="true"
-            COMMIT_MSG="chore: manual release $TAG_NAME"
-            
-            # 构建 Body：加入 Commit Logs
-            BODY="📦 **手动发布**\n- 版本: $TAG_NAME\n- 基础 Commit: $SHORT_HASH\n\n### 📝 变更日志 (Changelog):\n$COMMIT_LOGS"
-            
+          if [ “$MODE” == “force_release” ]; then
+            echo “🚀 强制发布模式”
+            SHOULD_RELEASE=”true”
+            COMMIT_MSG=”chore: manual release $TAG_NAME”
+
+            cat > /tmp/body.md <<BODYEOF
+          📦 **手动发布**
+          - 版本: $TAG_NAME
+          - 基础 Commit: $SHORT_HASH
+
+          ### 📝 变更日志 (Changelog):
+          $COMMIT_LOGS
+          BODYEOF
+
           else
-            # [模式 B: 检测更新]
+            # 检测更新模式
             git add .
             CHANGED_FILES=$(git diff --staged --name-only)
-            
-            if [ -z "$CHANGED_FILES" ]; then
-              echo "✅ 无更新"
-              echo "release=false" >> $GITHUB_OUTPUT
+
+            if [ -z “$CHANGED_FILES” ]; then
+              echo “✅ 无更新”
+              echo “release=false” >> $GITHUB_OUTPUT
               exit 0
             fi
-            
-            SHOULD_RELEASE="true"
-            
-            WEBUI_VER="${{ steps.webui.outputs.ver }}"
-            KERNEL_VER="${{ steps.kernel.outputs.ver }}"
-            IS_WEBUI_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/config/webui" || true)
-            IS_KERNEL_CHANGED=$(echo "$CHANGED_FILES" | grep "maodie/kernel/Mihomo" || true)
-            
-            if [ -n "$IS_WEBUI_CHANGED" ] && [ -n "$IS_KERNEL_CHANGED" ]; then
-              COMMIT_MSG="chore: update Kernel($KERNEL_VER) & WebUI($WEBUI_VER)"
-              BODY="🔥 **双重更新**\n- 内核: $KERNEL_VER\n- 面板: $WEBUI_VER"
-            elif [ -n "$IS_KERNEL_CHANGED" ]; then
-              COMMIT_MSG="chore: update Kernel to $KERNEL_VER"
-              BODY="🚀 **内核更新**\n- 版本: $KERNEL_VER"
-            elif [ -n "$IS_WEBUI_CHANGED" ]; then
-              COMMIT_MSG="chore: update WebUI to $WEBUI_VER"
-              BODY="🎨 **面板更新**\n- 版本: $WEBUI_VER"
-            fi
-            
-            # 拼接日志
-            # 注意：这里的 COMMIT_LOGS 是“本次自动更新操作之前”的提交记录
-            # 如果你在两次自动更新之间手动修改了脚本，这里就会显示出来
-            BODY="$BODY\n\n### 📝 变更日志 (Changelog):\n$COMMIT_LOGS\n\n📌 **Release Tag**: $TAG_NAME"
-          fi
-          
-          echo "release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
 
-          # ============================================
-          # 更新配置文件
-          # ============================================
-          echo "📝 更新配置文件为: $TAG_NAME"
-          
+            SHOULD_RELEASE=”true”
+
+            WEBUI_VER=”${{ steps.webui.outputs.ver }}”
+            KERNEL_VER=”${{ steps.kernel.outputs.ver }}”
+            IS_WEBUI_CHANGED=$(echo “$CHANGED_FILES” | grep -c “maodie/config/webui” || true)
+            IS_KERNEL_CHANGED=$(echo “$CHANGED_FILES” | grep -c “maodie/kernel/Mihomo” || true)
+
+            if [ “$IS_WEBUI_CHANGED” -gt 0 ] && [ “$IS_KERNEL_CHANGED” -gt 0 ]; then
+              COMMIT_MSG=”chore: update Kernel($KERNEL_VER) & WebUI($WEBUI_VER)”
+              SUMMARY=”🔥 **双重更新**\n- 内核: $KERNEL_VER\n- 面板: $WEBUI_VER”
+            elif [ “$IS_KERNEL_CHANGED” -gt 0 ]; then
+              COMMIT_MSG=”chore: update Kernel to $KERNEL_VER”
+              SUMMARY=”🚀 **内核更新**\n- 版本: $KERNEL_VER”
+            elif [ “$IS_WEBUI_CHANGED” -gt 0 ]; then
+              COMMIT_MSG=”chore: update WebUI to $WEBUI_VER”
+              SUMMARY=”🎨 **面板更新**\n- 版本: $WEBUI_VER”
+            fi
+
+            cat > /tmp/body.md <<BODYEOF
+          $(echo -e “$SUMMARY”)
+
+          ### 📝 变更日志 (Changelog):
+          $COMMIT_LOGS
+
+          📌 **Release Tag**: $TAG_NAME
+          BODYEOF
+          fi
+
+          echo “release=$SHOULD_RELEASE” >> $GITHUB_OUTPUT
+
+          # --- 更新配置文件 ---
           NEW_VERSION_CODE=$(date +'%Y%m%d')
-          UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/update.json"
-          
-          # 生成 changelog.md (带上 Commit 详情)
-          echo -e "$BODY" > changelog.md
-          CHANGELOG_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/changelog.md"
-          
-          # 修改 module.prop
-          sed -i "s|^version=.*|version=$TAG_NAME|" module.prop
-          sed -i "s|^versionCode=.*|versionCode=$NEW_VERSION_CODE|" module.prop
-          sed -i "s|^updateJson=.*|updateJson=$UPDATE_URL|" module.prop
-          
-          # 生成 update.json
-          echo '{
-            "version": "'"$TAG_NAME"'",
-            "versionCode": '"$NEW_VERSION_CODE"',
-            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/'"$TAG_NAME"'/Maodie-Launcher-'"$TAG_NAME"'.zip",
-            "changelog": "'"$CHANGELOG_URL"'"
-          }' > update.json
-          
-          # 提交更改
+          UPDATE_URL=”https://raw.githubusercontent.com/${{ github.repository }}/main/update.json”
+          CHANGELOG_URL=”https://raw.githubusercontent.com/${{ github.repository }}/main/changelog.md”
+
+          cp /tmp/body.md changelog.md
+
+          sed -i “s|^version=.*|version=$TAG_NAME|” module.prop
+          sed -i “s|^versionCode=.*|versionCode=$NEW_VERSION_CODE|” module.prop
+          sed -i “s|^updateJson=.*|updateJson=$UPDATE_URL|” module.prop
+
+          jq -n \
+            --arg ver “$TAG_NAME” \
+            --argjson code “$NEW_VERSION_CODE” \
+            --arg zip “https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/Maodie-Launcher-$TAG_NAME.zip” \
+            --arg log “$CHANGELOG_URL” \
+            '{ version: $ver, versionCode: $code, zipUrl: $zip, changelog: $log }' > update.json
+
           git add module.prop update.json changelog.md
-          git commit -m "$COMMIT_MSG"
+          git commit -m “$COMMIT_MSG”
           git push
-          
-          # 导出变量
-          echo "release_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          echo “release_tag=$TAG_NAME” >> $GITHUB_OUTPUT
           {
             echo 'body<<EOF'
-            echo -e "$BODY"
+            cat /tmp/body.md
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
       # ==========================================
-      # 步骤 4: 仅打包 (已移除所有签名逻辑)
+      # 步骤 4: 打包
       # ==========================================
+      - name: Download ASN Database
+        if: steps.commit.outputs.release == 'true'
+        uses: actions/cache@v4
+        id: asn-cache
+        with:
+          path: maodie/config/ASN.mmdb
+          key: asn-mmdb-${{ hashFiles('.github/workflows/update_webui_kernel.yml') }}
+          restore-keys: asn-mmdb-
+
+      - name: Fetch ASN Database (cache miss)
+        if: steps.commit.outputs.release == 'true' && steps.asn-cache.outputs.cache-hit != 'true'
+        run: |
+          wget -q -O maodie/config/ASN.mmdb “https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-ASN.mmdb” || { echo “❌ ASN 下载失败”; exit 1; }
+
       - name: Zip Module
         if: steps.commit.outputs.release == 'true'
         run: |
           mkdir -p maodie/run
-          
-          wget -q -O maodie/config/ASN.mmdb "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-ASN.mmdb"
-          # 1. 定义文件名
-          FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
-          
-          # 2. 打包 (直接压缩，不包含签名块)
-          echo "📦 正在打包 (无签名模式)..."
-          # -r 表示递归压缩
-          zip -r "$FINAL_ZIP" META-INF maodie webroot customize.sh module.prop service.sh uninstall.sh action.sh
-          
-          # 3. 检查文件并导出变量
-          if [ -f "$FINAL_ZIP" ]; then
-            echo "✅ 打包完成: $FINAL_ZIP"
-            ls -lh "$FINAL_ZIP"
-          else
-            echo "❌ 错误：文件未生成！"
+          FINAL_ZIP=”Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip”
+
+          zip -r “$FINAL_ZIP” META-INF maodie webroot customize.sh module.prop service.sh uninstall.sh action.sh
+
+          if [ ! -f “$FINAL_ZIP” ]; then
+            echo “❌ 错误：文件未生成！”
             exit 1
           fi
-          
-          # 导出文件名给下一步的 Release 使用
-          echo "zip_name=$FINAL_ZIP" >> $GITHUB_ENV
+          echo “✅ 打包完成: $(ls -lh “$FINAL_ZIP” | awk '{print $5, $NF}')”
+          echo “zip_name=$FINAL_ZIP” >> $GITHUB_ENV
 
       # ==========================================
       # 步骤 5: 发布 Release
       # ==========================================
       - name: Create Release
         if: steps.commit.outputs.release == 'true'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.commit.outputs.release_tag }}
           name: Maodie Launcher ${{ steps.commit.outputs.release_tag }}
