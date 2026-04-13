@@ -1,6 +1,7 @@
-📦 **手动发布**
-- 版本: v20260403-3956029
-- 基础 Commit: 3956029
+🚀 **内核更新**
+- 版本: v1.19.23
 
 ### 📝 变更日志 (Changelog):
-- minor change (3956029)
+- (No new commits)
+
+📌 **Release Tag**: v20260408-62de65d
