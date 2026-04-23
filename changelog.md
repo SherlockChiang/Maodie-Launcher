@@ -1,7 +1,6 @@
-🎨 **面板更新**
-- 版本: v1.245.1
+📦 **手动发布**
+- 版本: v20260423-980d2d4
+- 基础 Commit: 980d2d4
 
 ### 📝 变更日志 (Changelog):
 - (No new commits)
-
-📌 **Release Tag**: v20260422-d182d4c
