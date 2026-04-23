@@ -33,17 +33,23 @@
                 <h3>DNS 解析路由</h3>
             </div>
             <div class="card-desc">
-                一键切换底层 DNS 接管模式。搭配 AdGuard Home 模块使用时，请切换至「AGH 伴生模式」。
+                一键切换底层 DNS 接管模式。首次使用若 DoH 无法联通，可先点「首次配置」切到纯 IP DNS 启动；搭配 AdGuard Home 模块使用时，请切换至「AGH 伴生模式」。
             </div>
-            <div style="display: flex; gap: 12px;">
-                <mdui-button id="btnDnsDefault" style="flex: 1;" variant="tonal">
-                    默认 DNS
-                    <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.24 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.5c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.5z"/></svg></mdui-icon>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <mdui-button id="btnDnsFirstTime" variant="tonal">
+                    首次配置（纯 IP DNS）
+                    <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></mdui-icon>
                 </mdui-button>
-                <mdui-button id="btnDnsAGH" style="flex: 1;" variant="tonal">
-                    AGH 伴生
-                    <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg></mdui-icon>
-                </mdui-button>
+                <div style="display: flex; gap: 12px;">
+                    <mdui-button id="btnDnsDefault" style="flex: 1;" variant="tonal">
+                        默认 DNS
+                        <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.24 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.5c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.5z"/></svg></mdui-icon>
+                    </mdui-button>
+                    <mdui-button id="btnDnsAGH" style="flex: 1;" variant="tonal">
+                        AGH 伴生
+                        <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg></mdui-icon>
+                    </mdui-button>
+                </div>
             </div>
         </mdui-card>
 
@@ -109,8 +115,32 @@
     - 223.5.5.5
     - 119.29.29.29
   nameserver:
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.google/dns-query
+    - https://dns.cloudflare.com/dns-query#h3
+    - https://dns.google/dns-query#h3
+  nameserver-policy:
+    "rule-set:private_domain,cn_domain":
+      - 223.5.5.5
+      - 119.29.29.29`;
+
+        const DNS_FIRSTTIME = `dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  respect-rules: true
+  fake-ip-filter:
+    - "rule-set:private_domain"
+    - "rule-set:cn_domain"
+    - "rule-set:google_fcm"
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  proxy-server-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
   nameserver-policy:
     "rule-set:private_domain,cn_domain":
       - 223.5.5.5
@@ -131,8 +161,8 @@
   proxy-server-nameserver:
     - 223.5.5.5
   nameserver:
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.google/dns-query
+    - https://dns.cloudflare.com/dns-query#h3
+    - https://dns.google/dns-query#h3
   nameserver-policy:
     "rule-set:private_domain,cn_domain":
       - 127.0.0.1:5591`;
@@ -153,13 +183,23 @@
             const configText = await fetchConfigText();
             const btnDefault = document.getElementById('btnDnsDefault');
             const btnAGH = document.getElementById('btnDnsAGH');
-            
+            const btnFirst = document.getElementById('btnDnsFirstTime');
+
+            btnDefault.variant = "tonal";
+            btnAGH.variant = "tonal";
+            btnFirst.variant = "tonal";
+
             if (configText.includes("127.0.0.1:5591")) {
                 btnAGH.variant = "filled";
-                btnDefault.variant = "tonal";
+                return;
+            }
+
+            // 解析 nameserver: 下的条目，若全是 IP（不含 https）即首次配置模式
+            const m = configText.match(/^\s{2}nameserver:\s*\n((?:\s{4,}-.*\n?)+)/m);
+            if (m && !/https?:\/\//i.test(m[1])) {
+                btnFirst.variant = "filled";
             } else {
                 btnDefault.variant = "filled";
-                btnAGH.variant = "tonal";
             }
         };
 
@@ -171,7 +211,12 @@
                 return;
             }
 
-            const newBlock = mode === 'agh' ? DNS_AGH : DNS_DEFAULT;
+            const newBlock = mode === 'agh' ? DNS_AGH
+                : mode === 'firsttime' ? DNS_FIRSTTIME
+                : DNS_DEFAULT;
+            const modeLabel = mode === 'agh' ? 'AGH伴生'
+                : mode === 'firsttime' ? '首次配置'
+                : '默认';
             const lines = configText.split(/\r?\n/);
             const newLines = [];
             let inDnsBlock = false;
@@ -209,8 +254,8 @@
             }
 
             await saveConfigText(newLines.join('\n'));
-            
-            await appendHistory(`DNS切换: 成功变更为 ${mode === 'agh' ? 'AGH伴生' : '默认'} 模式`);
+
+            await appendHistory(`DNS切换: 成功变更为 ${modeLabel} 模式`);
             await restartKernel();
 
             mdui.snackbar({ message: "DNS已切换，内核自动重启中" });
@@ -218,6 +263,12 @@
             await loadHistory();
         };
 
+        document.getElementById('btnDnsFirstTime').addEventListener('click', async () => {
+            const btn = document.getElementById('btnDnsFirstTime');
+            btn.loading = true;
+            await switchDns('firsttime');
+            btn.loading = false;
+        });
         document.getElementById('btnDnsDefault').addEventListener('click', async () => {
             const btn = document.getElementById('btnDnsDefault');
             btn.loading = true;
