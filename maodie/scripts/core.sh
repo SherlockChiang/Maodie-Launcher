@@ -97,9 +97,12 @@ is_running() {
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE" 2>/dev/null)
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            return 0
+            # 校验是 Mihomo 本身，避免重启后 PID 被其它进程复用导致误判
+            if [ -r "/proc/$pid/cmdline" ] && grep -aq "Mihomo" "/proc/$pid/cmdline" 2>/dev/null; then
+                return 0
+            fi
         fi
-        # PID 文件存在但进程已死，清理残留
+        # PID 文件存在但进程已死或 PID 被复用，清理残留
         rm -f "$PID_FILE"
     fi
     return 1

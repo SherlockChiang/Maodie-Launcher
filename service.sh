@@ -11,6 +11,9 @@ KERNEL_BIN="$MODDIR/maodie/kernel/Mihomo"
 mkdir -p "$MODDIR/maodie/run"
 echo "--- Service Started at $(date) ---" > "$LOG_FILE"
 
+# 清理上次关机前残留的 PID 文件（重启后 PID 可能被其它进程复用，避免误判"已运行"）
+rm -f "$MODDIR/maodie/run/kernel.pid"
+
 # 0. 前置检查：核心二进制和配置文件是否存在
 if [ ! -f "$KERNEL_BIN" ]; then
     echo "FATAL: Kernel binary missing: $KERNEL_BIN" >> "$LOG_FILE"
