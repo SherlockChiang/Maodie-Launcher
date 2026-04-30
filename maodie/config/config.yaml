@@ -55,7 +55,7 @@ dns:
       - 119.29.29.29
 
 sniffer:
-  enable: false
+  enable: true
   force-dns-mapping: true
   parse-pure-ip: true
   override-destination: false
@@ -65,8 +65,8 @@ sniffer:
       override-destination: true
     TLS:
       ports: [443, 8443]
-    # QUIC:
-      # ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
   skip-domain:
     - '*.xiaomi.com'
     - '*.mi.com'
