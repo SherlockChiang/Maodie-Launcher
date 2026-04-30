@@ -37,6 +37,7 @@ dns:
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
+    - "rule-set:zhihu_domain"
     - "rule-set:google_fcm"
   
   default-nameserver:
@@ -49,7 +50,7 @@ dns:
     - https://dns.cloudflare.com/dns-query#h3
     - https://dns.google/dns-query#h3
   nameserver-policy:
-    "rule-set:private_domain,cn_domain":
+    "rule-set:private_domain,cn_domain,zhihu_domain":
       - 223.5.5.5
       - 119.29.29.29
 
@@ -116,37 +117,37 @@ proxy-providers:
 proxy-groups:
   - name: 默认
     type: select
-    proxies: [香港, 日本, 美国, 全部节点, 直连]
+    proxies: [香港, 日本, 美国, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Airport.png"
 
   - name: Google
     type: select
-    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    proxies: [默认, 香港, 日本, 美国, 手动切换]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Google_Search.png"
   
   - name: Google_fcm
     type: select
-    proxies: [直连, 默认, 香港, 日本, 美国, 全部节点]
+    proxies: [直连, 默认, 香港, 日本, 美国, 手动切换]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Global.png"
 
   - name: Telegram
     type: select
-    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    proxies: [默认, 香港, 日本, 美国, 手动切换]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Telegram.png"
 
   - name: Github
     type: select
-    proxies: [默认, 香港, 日本, 美国, 全部节点]
+    proxies: [默认, 香港, 日本, 美国, 手动切换]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Server.png"
 
   - name: Microsoft
     type: select
-    proxies: [默认, 香港, 日本, 美国, 全部节点, 直连]
+    proxies: [默认, 香港, 日本, 美国, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Microsoft.png"
 
   - name: 其他
     type: select
-    proxies: [默认, 香港, 日本, 美国, 全部节点, 直连]
+    proxies: [默认, 香港, 日本, 美国, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Final.png"
 
   # 地区分组
@@ -170,8 +171,14 @@ proxy-groups:
     filter: "(?i)美国|us"
     tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/US.png"
+  
+  - name: AI
+    type: select
+    include-all: true
+    filter: "(?i)美国|us"
+    icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Bot.png"
 
-  - name: 全部节点
+  - name: 手动切换
     type: select
     include-all: true
     filter: "^(?!.*(剩余|到期|官网|重置)).*" # 过滤掉非节点信息
@@ -183,8 +190,10 @@ rules:
   # - DST-PORT,53,DNS_Hijack
   - RULE-SET,ad,REJECT
   - RULE-SET,private_domain,直连
+  - RULE-SET,zhihu_domain,直连
   - RULE-SET,cn_domain,直连
 
+  - RULE-SET,ai_domain,AI
   - RULE-SET,google_fcm,Google_fcm
   - RULE-SET,github_domain,Github
   - RULE-SET,microsoft_domain,Microsoft
@@ -212,6 +221,12 @@ rule-providers:
   cn_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+  zhihu_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/zhihu.mrs"
+  ai_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ai-!cn.mrs"
   github_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"
