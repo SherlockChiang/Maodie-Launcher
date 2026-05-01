@@ -1,8 +1,7 @@
-📦 **手动发布**
-- 版本: v20260430-d3d7983
-- 基础 Commit: d3d7983
+🎨 **面板更新**
+- 版本: v1.246.2
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (d3d7983)
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (5a55d6e)
-- better config for zhihu and AI (aa08ba3)
+- (No new commits)
+
+📌 **Release Tag**: v20260501-00ee6c3
