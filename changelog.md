@@ -1,7 +1,8 @@
-🎨 **面板更新**
-- 版本: v1.246.2
+📦 **手动发布**
+- 版本: v20260502-9c0abec
+- 基础 Commit: 9c0abec
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260501-00ee6c3
+- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (9c0abec)
+- fcm adjust (9229964)
+- sniffer enable (54fd5e8)
