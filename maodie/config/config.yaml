@@ -188,6 +188,8 @@ proxy-groups:
 # 分流规则
 rules:
   # - DST-PORT,53,DNS_Hijack
+  - DOMAIN-SUFFIX,googleapis.cn,Google
+  - DOMAIN-SUFFIX,xn--ngstr-lra8j.com,Google
   - RULE-SET,ad,REJECT
   - RULE-SET,private_domain,直连
   - RULE-SET,zhihu_domain,直连
