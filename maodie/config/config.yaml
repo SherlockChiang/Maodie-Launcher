@@ -22,7 +22,7 @@ tun:
   stack: system 
   device: utun 
   auto-route: true 
-  strict-route: false 
+  strict-route: true 
   auto-detect-interface: true 
   dns-hijack:
     - any:53
@@ -38,7 +38,6 @@ dns:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
     - "rule-set:zhihu_domain"
-    - "rule-set:google_fcm"
   
   default-nameserver:
     - 223.5.5.5
@@ -67,6 +66,7 @@ sniffer:
       ports: [443, 8443]
     QUIC:
       ports: [443, 8443]
+      override-destination: true
   skip-domain:
     - '*.xiaomi.com'
     - '*.mi.com'
@@ -127,7 +127,7 @@ proxy-groups:
   
   - name: Google_fcm
     type: select
-    proxies: [直连, 默认, 香港, 日本, 美国, 手动切换]
+    proxies: [Google, 默认, 美国, 香港, 日本, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Global.png"
 
   - name: Telegram
@@ -168,14 +168,14 @@ proxy-groups:
   - name: 美国
     type: url-test
     include-all: true
-    filter: "(?i)美国|us"
+    filter: "(?i)(美国|美國|united states|usa|\\bus\\b)"
     tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/US.png"
   
   - name: AI
     type: select
     include-all: true
-    filter: "(?i)美国|us"
+    filter: "(?i)(美国|美國|united states|usa|\\bus\\b)"
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Bot.png"
 
   - name: 手动切换
