@@ -1,7 +1,7 @@
-📦 **手动发布**
-- 版本: v20260502-666cbee
-- 基础 Commit: 666cbee
+🎨 **面板更新**
+- 版本: v1.246.3
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (666cbee)
-- play store fix (cd51174)
+- (No new commits)
+
+📌 **Release Tag**: v20260505-764eecd
