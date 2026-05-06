@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.246.3
+📦 **手动发布**
+- 版本: v20260506-4436f36
+- 基础 Commit: 4436f36
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260505-764eecd
+- bug fix (4436f36)
+- Harden module defaults and cleanup (142fac6)
