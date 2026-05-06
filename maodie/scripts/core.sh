@@ -160,7 +160,6 @@ stop() {
         if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
             kill -15 $PID 2>/dev/null
 
-            # 等待优雅退出，最多 3 秒
             local wait=0
             while [ $wait -lt 3 ] && kill -0 $PID 2>/dev/null; do
                 sleep 1
@@ -174,10 +173,23 @@ stop() {
         fi
         rm -f "$PID_FILE"
     else
-        # 兜底：通过进程名清理
-        killall -15 Mihomo 2>/dev/null
+        for cmdline in /proc/[0-9]*/cmdline; do
+            [ -r "$cmdline" ] || continue
+            if tr '\0' ' ' < "$cmdline" 2>/dev/null | grep -Fq "$KERNEL_BIN"; then
+                pid=${cmdline#/proc/}
+                pid=${pid%/cmdline}
+                kill -15 "$pid" 2>/dev/null
+            fi
+        done
         sleep 1
-        killall -9 Mihomo 2>/dev/null
+        for cmdline in /proc/[0-9]*/cmdline; do
+            [ -r "$cmdline" ] || continue
+            if tr '\0' ' ' < "$cmdline" 2>/dev/null | grep -Fq "$KERNEL_BIN"; then
+                pid=${cmdline#/proc/}
+                pid=${pid%/cmdline}
+                kill -9 "$pid" 2>/dev/null
+            fi
+        done
     fi
 
     clear_iptables

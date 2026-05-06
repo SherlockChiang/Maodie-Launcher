@@ -5,6 +5,63 @@
 MOD_DIR="/data/adb/modules/Maodie-Launcher"
 LOG_FILE="$MOD_DIR/maodie/run/adblock.log"
 LOCK_FILE="$MOD_DIR/maodie/run/adblock.lock"
+AD_PATHS='
+/data/data/com.sankuai.meituan.takeoutnew/files/cips/common/waimai/assets/ad
+/data/media/0/Android/data/com.sankuai.meituan.takeoutnew/files/cips/common/waimai/assets/promotion
+/data/data/com.zhihu.android/files/ad
+/data/data/tv.danmaku.bili/files/res_cache
+/data/data/tv.danmaku.bili/files/update
+/data/media/0/Android/data/tv.danmaku.bili/cache/default/journal
+/data/data/tv.danmaku.bili/files/splash2
+/data/data/com.cn21.ecloud/files/ecloud_current_screenad.obj
+/data/data/tv.danmaku.bili/files/splash_top_view
+/data/data/com.ai.obc.cbn.app/files/splashShow
+/data/media/0/Android/data/cn.kuwo.player/files/KuwoMusic/.screenad
+/data/data/cn.kuwo.player/app_adnet
+/data/media/0/Android/data/cn.kuwo.player/files/KuwoMusic/.ad
+/data/media/0/Android/data/com.netease.cloudmusic/cache/Ad
+/data/data/com.netease.cloudmusic/cache/MusicWebApp
+/data/data/cn.damai/files/ad_dir
+/data/data/com.sf.activity/files/openScreenADsImg
+/data/media/0/Android/data/com.yongyou/files/Pictures
+/data/data/cn.missevan/cache/splash
+/data/data/com.xiaomi.youpin/shared_prefs/ad_prf.xml
+/data/media/0/Android/data/com.xiaomi.mico/files/data_cache/journal
+/data/data/com.autonavi.minimap/files/LaunchDynamicResource
+/data/data/com.autonavi.minimap/files/splash
+/data/data/com.ss.android.ugc.aweme/files/im_common_resource/common_resource/scene_strategy/incentive_chat_group_panel_alpha_video_festival
+/data/media/0/Android/data/com.tencent.mobileqq/files/vas_ad
+/data/data/com.anjuke.android.app/cache/splash_ad
+/data/data/com.bankcomm.maidanba/files/imageCachePath
+/data/data/com.bankcomm.maidanba/files/tabAdsPath
+/data/data/com.greenpoint.android.mc10086.activity/shared_prefs/default.xml
+/data/data/com.duowan.mobile/shared_prefs/CommonPref.xml
+/data/data/com.xiaomi.smarthome/files/sh_ads_file
+/data/media/0/Android/data/com.mihoyo.hyperion/cache/splash
+/data/data/com.cn21.ecloud/files/ecloud_current_screenad.obj
+/data/media/0/Android/data/com.taobao.idlefish/files/splash_ad_assets
+/data/media/0/Android/data/com.taobao.idlefish/files/ad
+/data/data/com.taobao.idlefish/cache/beizi
+/data/data/com.umetrip.android.msky.app/files/ad
+/data/media/0/Android/data/ctrip.android.view/cache/CTADCache
+/data/data/ctrip.android.view/files/CTAD
+/data/media/0/Android/data/com.yipiao/files/CTADCache
+/data/media/0/Android/data/com.yipiao/files/CTADSet
+/data/media/0/Android/data/com.jingdong.app.mall/cache/JDVideoFileDir
+/data/data/com.coocaa.familychat/app_e_qq_com_setting_7d767d052a5753acb54b111c8a40c128/sdkCloudSetting.cfg
+/data/data/com.duitang.main/shared_prefs/name.xml
+/data/data/com.hexin.plat.android/cache/splash_images
+/data/data/com.plateno.botaoota/cache/image_manager_disk_cache
+/data/data/com.tencent.map/databases/splash.db
+/data/data/com.m4399.gamecenter/shared_prefs/com.m4399.gamecenter.app.xml
+/data/data/com.ss.android.article.news/files/splashCache
+/data/data/com.handsgo.jiakao.android/shared_prefs/mucangData.db.xml
+/data/data/com.apkpure.aegon/cache/splash
+/data/media/0/Android/data/com.kugou.android/files/kugou/.splash_v4
+/data/data/com.coolapk.market/app_adnet/
+'
+
+mkdir -p "$MOD_DIR/maodie/run"
 
 # 防止重复启动（使用 lock 文件，比 pgrep 更可靠）
 if [ -f "$LOCK_FILE" ]; then
@@ -18,7 +75,6 @@ echo $$ > "$LOCK_FILE"
 # 退出时清理 lock 文件
 trap 'rm -f "$LOCK_FILE"; exit 0' INT TERM
 
-mkdir -p "$MOD_DIR/maodie/run"
 echo "$(date): NoAdsService started (PID: $$)." > "$LOG_FILE"
 
 blocked_count=0
@@ -45,136 +101,11 @@ sleep 30
 while :; do
     blocked_count=0
 
-    # 添加完屏蔽路径以后必须重启手机生效
-    # 美团外卖
-    block_ad "/data/data/com.sankuai.meituan.takeoutnew/files/cips/common/waimai/assets/ad"
-    block_ad "/data/media/0/Android/data/com.sankuai.meituan.takeoutnew/files/cips/common/waimai/assets/promotion"
-    
-    # 知乎App
-    block_ad "/data/data/com.zhihu.android/files/ad"
-
-    # 哔哩哔哩
-    block_ad "/data/data/tv.danmaku.bili/files/res_cache"
-    block_ad "/data/data/tv.danmaku.bili/files/update"
-    block_ad "/data/media/0/Android/data/tv.danmaku.bili/cache/default/journal"
-    block_ad "/data/data/tv.danmaku.bili/files/splash2"
-    block_ad "/data/data/com.cn21.ecloud/files/ecloud_current_screenad.obj"
-    block_ad "/data/data/tv.danmaku.bili/files/splash_top_view"
-    
-    # 中国广电
-    block_ad "/data/data/com.ai.obc.cbn.app/files/splashShow"
-    
-    # 酷我音乐
-    block_ad "/data/media/0/Android/data/cn.kuwo.player/files/KuwoMusic/.screenad"
-    block_ad "/data/data/cn.kuwo.player/app_adnet"
-    block_ad "/data/media/0/Android/data/cn.kuwo.player/files/KuwoMusic/.ad"
-    
-    # 网易云音乐
-    block_ad "/data/media/0/Android/data/com.netease.cloudmusic/cache/Ad"
-    block_ad "/data/data/com.netease.cloudmusic/cache/MusicWebApp"    
-    
-    # 大麦App
-    block_ad "/data/data/cn.damai/files/ad_dir"
-    
-    # 顺丰速递
-    block_ad "/data/data/com.sf.activity/files/openScreenADsImg"
-    
-    # 丰云行App
-    block_ad "/data/media/0/Android/data/com.yongyou/files/Pictures"
-    
-    # 猫耳FM
-    block_ad "/data/data/cn.missevan/cache/splash"
-    
-    # 小米有品
-    block_ad "/data/data/com.xiaomi.youpin/shared_prefs/ad_prf.xml"
-    
-    # 小爱音箱
-    block_ad "/data/media/0/Android/data/com.xiaomi.mico/files/data_cache/journal"
-    
-    # 高德地图
-    block_ad "/data/data/com.autonavi.minimap/files/LaunchDynamicResource"
-    block_ad "/data/data/com.autonavi.minimap/files/splash"
-    
-    # 抖音App
-    block_ad "/data/data/com.ss.android.ugc.aweme/files/im_common_resource/common_resource/scene_strategy/incentive_chat_group_panel_alpha_video_festival"
-    
-    # 腾讯QQ
-    block_ad "/data/media/0/Android/data/com.tencent.mobileqq/files/vas_ad"
-    
-    # 安居客App
-    block_ad "/data/data/com.anjuke.android.app/cache/splash_ad"
-    
-    # 买单吧App
-    block_ad "/data/data/com.bankcomm.maidanba/files/imageCachePath"
-    block_ad "/data/data/com.bankcomm.maidanba/files/tabAdsPath"
-    
-    # 中国移动
-    block_ad "/data/data/com.greenpoint.android.mc10086.activity/shared_prefs/default.xml"
-    
-    # YY App
-    block_ad "/data/data/com.duowan.mobile/shared_prefs/CommonPref.xml"
-    
-    # 米家App
-    block_ad "/data/data/com.xiaomi.smarthome/files/sh_ads_file"
-    
-    # 米游社
-    block_ad "/data/media/0/Android/data/com.mihoyo.hyperion/cache/splash"
-    
-    # 天翼云盘
-    block_ad "/data/data/com.cn21.ecloud/files/ecloud_current_screenad.obj"
-    
-    # 闲鱼App
-    block_ad "/data/media/0/Android/data/com.taobao.idlefish/files/splash_ad_assets"
-    block_ad "/data/media/0/Android/data/com.taobao.idlefish/files/ad"
-    block_ad "/data/data/com.taobao.idlefish/cache/beizi"
-    
-    # 航旅纵横
-    block_ad "/data/data/com.umetrip.android.msky.app/files/ad"
-    
-    # 携程旅行
-    block_ad "/data/media/0/Android/data/ctrip.android.view/cache/CTADCache"
-    block_ad "/data/data/ctrip.android.view/files/CTAD"
-    
-    # 智行火车票
-    block_ad "/data/media/0/Android/data/com.yipiao/files/CTADCache"
-    block_ad "/data/media/0/Android/data/com.yipiao/files/CTADSet"
-    
-    # 京东App
-    block_ad "/data/media/0/Android/data/com.jingdong.app.mall/cache/JDVideoFileDir"
-    
-    # 小福家App
-    block_ad "/data/data/com.coocaa.familychat/app_e_qq_com_setting_7d767d052a5753acb54b111c8a40c128/sdkCloudSetting.cfg"
-    
-    # 堆糖广告
-    block_ad "/data/data/com.duitang.main/shared_prefs/name.xml"
-    
-    # 同花顺App
-    block_ad "/data/data/com.hexin.plat.android/cache/splash_images"
-    
-    # 锦江荟App
-    block_ad "/data/data/com.plateno.botaoota/cache/image_manager_disk_cache"
-    
-    # 腾讯地图
-    block_ad "/data/data/com.tencent.map/databases/splash.db"
-    
-    # 4399游戏盒
-    block_ad "/data/data/com.m4399.gamecenter/shared_prefs/com.m4399.gamecenter.app.xml"
-    
-    # 今日头条
-    block_ad "/data/data/com.ss.android.article.news/files/splashCache"
-    
-    # 驾考宝典
-    block_ad "/data/data/com.handsgo.jiakao.android/shared_prefs/mucangData.db.xml"
-    
-    # Apkpure
-    block_ad "/data/data/com.apkpure.aegon/cache/splash"
-    
-    # 酷狗音乐
-    block_ad "/data/media/0/Android/data/com.kugou.android/files/kugou/.splash_v4"
-
-    # Coolapk
-    block_ad "/data/data/com.coolapk.market/app_adnet/"
-    
+    while IFS= read -r target; do
+        [ -n "$target" ] && block_ad "$target"
+    done <<EOF
+$AD_PATHS
+EOF
 
     [ $blocked_count -gt 0 ] && echo "$(date): Patrol done, $blocked_count path(s) blocked." >> "$LOG_FILE"
 
