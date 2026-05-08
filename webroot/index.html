@@ -1,103 +1,344 @@
 <!DOCTYPE html>
-<html class="mdui-theme-auto">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Maodie 管理面板</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css">
-    <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
-
     <style>
-        body { padding: 16px; font-family: system-ui, -apple-system, sans-serif; }
-        .container { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-        mdui-text-field { width: 100%; margin-bottom: 8px; }
-        .history-card { padding: 16px; border-radius: 16px; background-color: rgb(var(--mdui-color-surface-container-low)); }
-        .log-box { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; color: rgb(var(--mdui-color-on-surface-variant)); }
-        svg { fill: currentColor; }
-        
-        .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .card-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
-        .card-desc { margin-bottom: 16px; color: rgb(var(--mdui-color-on-surface-variant)); font-size: 14px; }
+        :root {
+            color-scheme: light dark;
+            --bg: #f7f8fb;
+            --surface: #ffffff;
+            --surface-soft: #eef2f7;
+            --text: #151923;
+            --muted: #5f6876;
+            --primary: #1769e0;
+            --primary-soft: #d9e7ff;
+            --border: #dce2ea;
+            --shadow: 0 8px 24px rgba(23, 33, 54, 0.08);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #101318;
+                --surface: #191d24;
+                --surface-soft: #232934;
+                --text: #eef1f6;
+                --muted: #aab2bf;
+                --primary: #8db8ff;
+                --primary-soft: #223654;
+                --border: #313845;
+                --shadow: none;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 16px;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 620px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .topbar {
+            padding: 8px 4px;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .card {
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .card-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            flex: 0 0 24px;
+            color: var(--primary);
+        }
+
+        .card-desc {
+            margin-bottom: 16px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55;
+        }
+
+        .stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .row > * { flex: 1; }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        input {
+            width: 100%;
+            min-height: 44px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface-soft);
+            color: var(--text);
+            padding: 0 12px;
+            font: inherit;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.18);
+        }
+
+        button {
+            min-height: 44px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            padding: 0 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font: inherit;
+            font-weight: 650;
+        }
+
+        button.filled {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        button.icon-button {
+            flex: 0 0 44px;
+            width: 44px;
+            padding: 0;
+        }
+
+        button:disabled {
+            opacity: 0.62;
+        }
+
+        button.loading::after {
+            content: "";
+            width: 14px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .history-card {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--surface-soft);
+        }
+
+        .history-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .history-head h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .log-box {
+            max-height: 220px;
+            overflow-y: auto;
+            color: var(--muted);
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .toast {
+            position: fixed;
+            left: 16px;
+            right: 16px;
+            bottom: 20px;
+            z-index: 10;
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #242a33;
+            color: #fff;
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.26);
+            opacity: 0;
+            transform: translateY(12px);
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <mdui-top-app-bar variant="small">
-            <mdui-top-app-bar-title>Maodie 控制中心</mdui-top-app-bar-title>
-        </mdui-top-app-bar>
+        <header class="topbar">Maodie 控制中心</header>
 
-        <mdui-card style="padding: 20px; border-radius: 24px;">
+        <section class="card">
             <div class="card-header">
-                <mdui-icon><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg></mdui-icon>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8Z"/></svg>
                 <h3>DNS 解析路由</h3>
             </div>
             <div class="card-desc">
                 一键切换底层 DNS 接管模式。首次使用若 DoH 无法联通，可先点「首次配置」切到纯 IP DNS 启动；搭配 AdGuard Home 模块使用时，请切换至「AGH 伴生模式」。
             </div>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <mdui-button id="btnDnsFirstTime" variant="tonal">
-                    首次配置（纯 IP DNS）
-                    <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></mdui-icon>
-                </mdui-button>
-                <div style="display: flex; gap: 12px;">
-                    <mdui-button id="btnDnsDefault" style="flex: 1;" variant="tonal">
-                        默认 DNS
-                        <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.24 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.5c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.5z"/></svg></mdui-icon>
-                    </mdui-button>
-                    <mdui-button id="btnDnsAGH" style="flex: 1;" variant="tonal">
-                        AGH 伴生
-                        <mdui-icon slot="icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg></mdui-icon>
-                    </mdui-button>
+            <div class="stack">
+                <button id="btnDnsFirstTime" type="button">首次配置（纯 IP DNS）</button>
+                <div class="row">
+                    <button id="btnDnsDefault" type="button">默认 DNS</button>
+                    <button id="btnDnsAGH" type="button">AGH 伴生</button>
                 </div>
             </div>
-        </mdui-card>
+        </section>
 
-        <mdui-card style="padding: 20px; border-radius: 24px;">
+        <section class="card">
             <div class="card-header">
-                <mdui-icon><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></mdui-icon>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96ZM14 13v4h-4v-4H7l5-5 5 5h-3Z"/></svg>
                 <h3>订阅节点配置</h3>
             </div>
             <div class="card-desc">修改后将自动重启内核生效。留空则保持原链接不变。</div>
-            
-            <mdui-text-field id="url1" label="Provider 1 订阅地址"></mdui-text-field>
-            <mdui-text-field id="url2" label="Provider 2 订阅地址"></mdui-text-field>
-            <mdui-text-field id="url3" label="Provider 3 订阅地址"></mdui-text-field>
 
-            <div style="display: flex; gap: 12px; margin-top: 16px;">
-                <mdui-button id="saveBtn" style="flex: 1;">
-                    保存并重启
-                    <mdui-icon slot="end-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg></mdui-icon>
-                </mdui-button>
-                <mdui-button-icon id="refreshBtn" variant="tonal" title="刷新页面">
-                    <mdui-icon><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></mdui-icon>
-                </mdui-button-icon>
+            <div class="field">
+                <label for="url1">Provider 1 订阅地址</label>
+                <input id="url1" autocomplete="off">
             </div>
-        </mdui-card>
+            <div class="field">
+                <label for="url2">Provider 2 订阅地址</label>
+                <input id="url2" autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="url3">Provider 3 订阅地址</label>
+                <input id="url3" autocomplete="off">
+            </div>
 
-        <div class="history-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h3 style="margin: 0; font-size: 16px;">修改记录</h3>
-                <mdui-button-icon id="clearLogBtn" variant="standard" title="清空记录">
-                    <mdui-icon><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/></svg></mdui-icon>
-                </mdui-button-icon>
+            <div class="row" style="margin-top: 16px;">
+                <button id="saveBtn" type="button">保存并重启</button>
+                <button id="refreshBtn" class="icon-button" type="button" title="刷新页面" aria-label="刷新页面">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8S7.58 20 12 20c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <section class="history-card">
+            <div class="history-head">
+                <h3>修改记录</h3>
+                <button id="clearLogBtn" class="icon-button" type="button" title="清空记录" aria-label="清空记录">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1ZM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7Z"/></svg>
+                </button>
             </div>
             <div id="logBox" class="log-box">正在加载...</div>
-        </div>
+        </section>
     </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script type="module">
-        import { exec } from 'https://esm.sh/kernelsu';
+    <script>
+        const exec = (command, options = {}) => new Promise((resolve, reject) => {
+            if (!window.ksu || typeof window.ksu.exec !== 'function') {
+                reject(new Error('KernelSU WebUI bridge is unavailable'));
+                return;
+            }
+
+            const callbackName = `ksuExecCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            window[callbackName] = (errno, stdout, stderr) => {
+                delete window[callbackName];
+                resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
+            };
+            window.ksu.exec(command, JSON.stringify(options), callbackName);
+        });
 
         const CONFIG_FILE = '/data/adb/modules/Maodie-Launcher/maodie/config/config.yaml';
         const LOG_FILE = '/data/adb/modules/Maodie-Launcher/webroot/history.log';
         const CORE_SCRIPT = '/data/adb/modules/Maodie-Launcher/maodie/scripts/core.sh';
         const restartKernel = () => exec(`sh ${CORE_SCRIPT} restart`);
 
+        const $ = (id) => document.getElementById(id);
         const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
         const b64_to_utf8 = (str) => decodeURIComponent(escape(window.atob(str)));
 
-        // 【严格修复】保证所有子项左侧至少有2个空格缩进
+        let toastTimer;
+        const snackbar = (message) => {
+            const toast = $('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+        };
+
+        const setLoading = (btn, loading) => {
+            btn.disabled = loading;
+            btn.classList.toggle('loading', loading);
+        };
+
+        const setFilled = (btn, filled) => {
+            btn.classList.toggle('filled', filled);
+        };
+
         const DNS_DEFAULT = `dns:
   enable: true
   listen: 0.0.0.0:1053
@@ -167,7 +408,6 @@
     "rule-set:private_domain,cn_domain":
       - 127.0.0.1:5591`;
 
-        // 全局文件读写操作
         const fetchConfigText = async () => {
             const { errno, stdout } = await exec(`cat ${CONFIG_FILE} | base64 -w 0`);
             return (errno === 0 && stdout) ? b64_to_utf8(stdout.trim()) : "";
@@ -178,36 +418,53 @@
             await exec(`echo -n "${b64Str}" | base64 -d > ${CONFIG_FILE}`);
         };
 
-        // UI 状态检查
-        const checkDnsState = async () => {
-            const configText = await fetchConfigText();
-            const btnDefault = document.getElementById('btnDnsDefault');
-            const btnAGH = document.getElementById('btnDnsAGH');
-            const btnFirst = document.getElementById('btnDnsFirstTime');
+        const applyDnsState = (configText) => {
+            const btnDefault = $('btnDnsDefault');
+            const btnAGH = $('btnDnsAGH');
+            const btnFirst = $('btnDnsFirstTime');
 
-            btnDefault.variant = "tonal";
-            btnAGH.variant = "tonal";
-            btnFirst.variant = "tonal";
+            setFilled(btnDefault, false);
+            setFilled(btnAGH, false);
+            setFilled(btnFirst, false);
 
             if (configText.includes("127.0.0.1:5591")) {
-                btnAGH.variant = "filled";
+                setFilled(btnAGH, true);
                 return;
             }
 
-            // 解析 nameserver: 下的条目，若全是 IP（不含 https）即首次配置模式
             const m = configText.match(/^\s{2}nameserver:\s*\n((?:\s{4,}-.*\n?)+)/m);
             if (m && !/https?:\/\//i.test(m[1])) {
-                btnFirst.variant = "filled";
+                setFilled(btnFirst, true);
             } else {
-                btnDefault.variant = "filled";
+                setFilled(btnDefault, true);
             }
         };
 
-        // --- 修复1：重新实现 DNS 切换的行级扫描，确保彻底移除旧数据 ---
+        const checkDnsState = async () => {
+            applyDnsState(await fetchConfigText());
+        };
+
+        const appendHistory = async (message) => {
+            const time = new Date().toLocaleString();
+            const b64Log = utf8_to_b64(`[${time}] ${message}\n`);
+            await exec(`echo -n "${b64Log}" | base64 -d >> ${LOG_FILE}`);
+        };
+
+        const loadHistory = async () => {
+            const { errno, stdout } = await exec(`cat ${LOG_FILE}`);
+            const logBox = $('logBox');
+            if (errno === 0 && stdout.trim()) {
+                logBox.textContent = stdout;
+                logBox.scrollTop = logBox.scrollHeight;
+            } else {
+                logBox.textContent = "暂无修改记录...";
+            }
+        };
+
         const switchDns = async (mode) => {
             let configText = await fetchConfigText();
             if (!configText) {
-                mdui.snackbar({ message: "错误：无法读取配置文件" });
+                snackbar("错误：无法读取配置文件");
                 return;
             }
 
@@ -222,27 +479,20 @@
             let inDnsBlock = false;
             let dnsInserted = false;
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                
-                // 扫描到旧的顶格 dns:
+            for (const line of lines) {
                 if (line === 'dns:' || line.startsWith('dns: ')) {
                     inDnsBlock = true;
                     if (!dnsInserted) {
                         newLines.push(newBlock);
                         dnsInserted = true;
                     }
-                    continue; 
+                    continue;
                 }
 
                 if (inDnsBlock) {
-                    // 只要是空行、或存在空格缩进的行，就说明还在 dns 块的管辖内，丢弃掉
-                    if (line.trim() === '' || /^[ \t]+/.test(line)) {
-                        continue;
-                    }
-                    // 遇到了非空且没有缩进的行 (如 proxies: 等)，说明 dns 区块结束了
+                    if (line.trim() === '' || /^[ \t]+/.test(line)) continue;
                     inDnsBlock = false;
-                    newLines.push(line); 
+                    newLines.push(line);
                     continue;
                 }
                 newLines.push(line);
@@ -254,150 +504,127 @@
             }
 
             await saveConfigText(newLines.join('\n'));
-
             await appendHistory(`DNS切换: 成功变更为 ${modeLabel} 模式`);
             await restartKernel();
-
-            mdui.snackbar({ message: "DNS已切换，内核自动重启中" });
+            snackbar("DNS已切换，内核自动重启中");
             await checkDnsState();
             await loadHistory();
         };
 
-        document.getElementById('btnDnsFirstTime').addEventListener('click', async () => {
-            const btn = document.getElementById('btnDnsFirstTime');
-            btn.loading = true;
-            await switchDns('firsttime');
-            btn.loading = false;
-        });
-        document.getElementById('btnDnsDefault').addEventListener('click', async () => {
-            const btn = document.getElementById('btnDnsDefault');
-            btn.loading = true;
-            await switchDns('default');
-            btn.loading = false;
-        });
-        document.getElementById('btnDnsAGH').addEventListener('click', async () => {
-            const btn = document.getElementById('btnDnsAGH');
-            btn.loading = true;
-            await switchDns('agh');
-            btn.loading = false;
-        });
-
-
-        // --- 修复2：不再使用容易出错的 sed，改用 JS 内存解析和替换 URL ---
         const getProviderUrl = (text, provider) => {
-            // 正则匹配 provider 块里的第一个 url 属性
             const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
             const match = text.match(regex);
-            if (match) {
-                let url = match[2].trim();
-                url = url.split('#')[0].trim(); // 去除中文注释
-                url = url.replace(/^["']|["']$/g, ''); // 兼容去引号
-                return url;
-            }
-            return '';
+            if (!match) return '';
+            return match[2].trim().split('#')[0].trim().replace(/^["']|["']$/g, '');
         };
 
         const updateProviderUrl = (text, provider, newUrl) => {
             const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
-            if (regex.test(text)) {
-                // 强制添加双引号写入，并彻底覆盖掉本行的旧内容(包括旧注释)
-                return text.replace(regex, `$1"${newUrl}"`);
-            }
-            return text;
+            return regex.test(text) ? text.replace(regex, `$1"${newUrl}"`) : text;
+        };
+
+        const applyConfigText = (text) => {
+            $('url1').value = getProviderUrl(text, 'provider1');
+            $('url2').value = getProviderUrl(text, 'provider2');
+            $('url3').value = getProviderUrl(text, 'provider3');
         };
 
         const loadConfig = async () => {
-            const text = await fetchConfigText();
-            document.getElementById('url1').value = getProviderUrl(text, 'provider1');
-            document.getElementById('url2').value = getProviderUrl(text, 'provider2');
-            document.getElementById('url3').value = getProviderUrl(text, 'provider3');
+            applyConfigText(await fetchConfigText());
         };
 
-        const loadHistory = async () => {
-            const { errno, stdout } = await exec(`cat ${LOG_FILE}`);
-            const logBox = document.getElementById('logBox');
-            if (errno === 0 && stdout.trim()) {
-                logBox.textContent = stdout;
-                logBox.scrollTop = logBox.scrollHeight;
-            } else {
-                logBox.textContent = "暂无修改记录...";
-            }
+        const loadPageState = async () => {
+            const [configText] = await Promise.all([fetchConfigText(), loadHistory()]);
+            applyConfigText(configText);
+            applyDnsState(configText);
         };
 
-        const appendHistory = async (message) => {
-            const time = new Date().toLocaleString();
-            const logStr = `[${time}] ${message}`;
-            // 使用 base64 编码避免 shell 注入
-            const b64Log = utf8_to_b64(logStr + '\n');
-            await exec(`echo -n "${b64Log}" | base64 -d >> ${LOG_FILE}`);
-        };
-
-        document.getElementById('saveBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('saveBtn');
-            btn.loading = true; 
-
-            let configText = await fetchConfigText();
-            if (!configText) {
-                mdui.snackbar({ message: "错误：无法读取配置文件" });
-                btn.loading = false;
-                return;
-            }
-
-            const urls = {
-                provider1: document.getElementById('url1').value.trim(),
-                provider2: document.getElementById('url2').value.trim(),
-                provider3: document.getElementById('url3').value.trim()
-            };
-
-            let updatedCount = 0;
-
-            for (const [provider, url] of Object.entries(urls)) {
-                if (!url) continue;
-                
-                const oldUrl = getProviderUrl(configText, provider);
-                if (oldUrl === url) continue; 
-
-                // 在 JS 变量中直接更新文本，安全且不会破坏其他结构
-                configText = updateProviderUrl(configText, provider, url);
-                await appendHistory(`更新 ${provider}: 成功`);
-                updatedCount++;
-            }
-
-            if (updatedCount > 0) {
-                // 统一执行一次保存
-                await saveConfigText(configText);
-                await appendHistory(`执行内核重启`);
-                await restartKernel();
-                mdui.snackbar({ message: "保存成功，内核已重启" });
-            } else {
-                mdui.snackbar({ message: "未检测到链接变更" });
-            }
-
-            await loadHistory();
-            btn.loading = false;
+        $('btnDnsFirstTime').addEventListener('click', async () => {
+            const btn = $('btnDnsFirstTime');
+            setLoading(btn, true);
+            try { await switchDns('firsttime'); }
+            finally { setLoading(btn, false); }
         });
 
-        document.getElementById('refreshBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('refreshBtn');
-            btn.loading = true;
-            await loadConfig();
-            await checkDnsState();
-            await loadHistory();
-            btn.loading = false;
-            mdui.snackbar({ message: "数据已刷新" });
+        $('btnDnsDefault').addEventListener('click', async () => {
+            const btn = $('btnDnsDefault');
+            setLoading(btn, true);
+            try { await switchDns('default'); }
+            finally { setLoading(btn, false); }
         });
 
-        document.getElementById('clearLogBtn').addEventListener('click', async () => {
+        $('btnDnsAGH').addEventListener('click', async () => {
+            const btn = $('btnDnsAGH');
+            setLoading(btn, true);
+            try { await switchDns('agh'); }
+            finally { setLoading(btn, false); }
+        });
+
+        $('saveBtn').addEventListener('click', async () => {
+            const btn = $('saveBtn');
+            setLoading(btn, true);
+
+            try {
+                let configText = await fetchConfigText();
+                if (!configText) {
+                    snackbar("错误：无法读取配置文件");
+                    return;
+                }
+
+                const urls = {
+                    provider1: $('url1').value.trim(),
+                    provider2: $('url2').value.trim(),
+                    provider3: $('url3').value.trim()
+                };
+                let updatedCount = 0;
+
+                for (const [provider, url] of Object.entries(urls)) {
+                    if (!url) continue;
+                    const oldUrl = getProviderUrl(configText, provider);
+                    if (oldUrl === url) continue;
+                    configText = updateProviderUrl(configText, provider, url);
+                    await appendHistory(`更新 ${provider}: 成功`);
+                    updatedCount++;
+                }
+
+                if (updatedCount > 0) {
+                    await saveConfigText(configText);
+                    await appendHistory(`执行内核重启`);
+                    await restartKernel();
+                    snackbar("保存成功，内核已重启");
+                } else {
+                    snackbar("未检测到链接变更");
+                }
+                await loadHistory();
+            } finally {
+                setLoading(btn, false);
+            }
+        });
+
+        $('refreshBtn').addEventListener('click', async () => {
+            const btn = $('refreshBtn');
+            setLoading(btn, true);
+            try {
+                await loadPageState();
+                snackbar("数据已刷新");
+            } finally {
+                setLoading(btn, false);
+            }
+        });
+
+        $('clearLogBtn').addEventListener('click', async () => {
             await exec(`rm -f ${LOG_FILE}`);
             await loadHistory();
-            mdui.snackbar({ message: "记录已清空" });
+            snackbar("记录已清空");
         });
 
-        window.onload = async () => {
-            await loadConfig();
-            await checkDnsState();
-            await loadHistory();
-        };
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await loadPageState();
+            } catch (error) {
+                snackbar(error.message || "页面初始化失败");
+            }
+        });
     </script>
 </body>
 </html>
