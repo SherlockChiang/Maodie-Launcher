@@ -1,6 +1,7 @@
-📦 **手动发布**
-- 版本: v20260508-4e4298b
-- 基础 Commit: 4e4298b
+🎨 **面板更新**
+- 版本: v1.247.0
 
 ### 📝 变更日志 (Changelog):
-- fix: make module webui load offline (4e4298b)
+- (No new commits)
+
+📌 **Release Tag**: v20260510-3adf44e
