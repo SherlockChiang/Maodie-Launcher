@@ -1,0 +1,1 @@
+import{lt as e}from"./D_Zec42B.js";import{f as t}from"./wvj33GKw.js";import{t as n}from"./DEXExuFf.js";var r=t(`logs`,()=>{let t=n(),r=e([]),i=e(!1),a=1;return{logs:r,paused:i,addLog:e=>{i.value||(r.value=[{...e,seq:a},...r.value].slice(0,t.logMaxRows),a++)},clearLogs:()=>{r.value=[],a=1},togglePaused:()=>{i.value=!i.value}}});export{r as t};
