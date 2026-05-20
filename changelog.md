@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.248.1
+📦 **手动发布**
+- 版本: v20260520-91c3931
+- 基础 Commit: 91c3931
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260520-2fc9840
+- quic fix (91c3931)
+- tencent quic fix (0a68edb)
