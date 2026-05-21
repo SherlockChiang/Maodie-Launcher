@@ -19,6 +19,7 @@ $IncludeItems = @(
     "customize.sh",
     "module.prop",
     "service.sh",
+    "post-fs-data.sh",
     "uninstall.sh",
     "action.sh"
 )

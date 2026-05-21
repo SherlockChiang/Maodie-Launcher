@@ -106,7 +106,7 @@ step "版本: $VERSION"
 step "Commit: $GIT_HASH"
 
 # 检查文件
-INCLUDE=(META-INF maodie webroot customize.sh module.prop service.sh uninstall.sh action.sh)
+INCLUDE=(META-INF maodie webroot customize.sh module.prop service.sh post-fs-data.sh uninstall.sh action.sh)
 step "检查打包文件..."
 missing=()
 for item in "${INCLUDE[@]}"; do

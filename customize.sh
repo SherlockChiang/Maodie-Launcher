@@ -21,6 +21,7 @@ unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2
 
 ui_print "- 设置执行权限..."
 chmod +x $MODPATH/service.sh
+chmod +x $MODPATH/post-fs-data.sh
 chmod +x $MODPATH/uninstall.sh
 chmod -R +x $MODPATH/maodie/scripts/
 chmod 755 $MODPATH/maodie/kernel/Mihomo
