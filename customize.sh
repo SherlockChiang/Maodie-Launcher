@@ -26,6 +26,19 @@ chmod -R +x $MODPATH/maodie/scripts/
 chmod 755 $MODPATH/maodie/kernel/Mihomo
 chmod -R 755 "$MODPATH/maodie/config/webui"
 
+# ASN 数据库：如果 zip 中没有，则在线下载
+ASN_DB="$MODPATH/maodie/config/ASN.mmdb"
+if [ ! -f "$ASN_DB" ]; then
+  ui_print "- ASN 数据库缺失，正在下载..."
+  if curl -fL --retry 3 --retry-delay 5 -o "$ASN_DB" \
+    "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-ASN.mmdb" 2>/dev/null; then
+    chmod 644 "$ASN_DB"
+    ui_print "  ✅ ASN 数据库下载完成"
+  else
+    ui_print "  ⚠️ ASN 数据库下载失败，首次启动将自动尝试下载"
+  fi
+fi
+
 ui_print "- 开始配置迁移..."
 
 if [ -d "$EXISTING_DIR" ]; then

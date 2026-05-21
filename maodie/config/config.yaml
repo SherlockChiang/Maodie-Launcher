@@ -19,11 +19,11 @@ geox-url:
 
 tun:
   enable: true
-  stack: system 
-  device: utun 
-  auto-route: true 
-  strict-route: true 
-  auto-detect-interface: true 
+  stack: system
+  device: utun
+  auto-route: true
+  strict-route: false
+  auto-detect-interface: true
   dns-hijack:
     - any:53
     - tcp://any:53

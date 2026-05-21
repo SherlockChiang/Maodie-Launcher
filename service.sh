@@ -50,13 +50,22 @@ chmod +x "$SCRIPT_DIR/core.sh" 2>/dev/null
 chmod +x "$SCRIPT_DIR/monitor.sh" 2>/dev/null
 chmod +x "$SCRIPT_DIR/NoAdsService.sh" 2>/dev/null
 
-# 4. 启动核心（前台等待确认启动成功）
-sh "$SCRIPT_DIR/core.sh" start >> "$LOG_FILE" 2>&1
-if [ $? -eq 0 ]; then
-    echo "Core started successfully." >> "$LOG_FILE"
-else
-    echo "Warning: Core may have failed to start." >> "$LOG_FILE"
+# 3.5 SELinux 兼容处理
+if command -v getenforce >/dev/null 2>&1; then
+    SELINUX_STATUS=$(getenforce 2>/dev/null)
+    echo "SELinux status: $SELINUX_STATUS" >> "$LOG_FILE"
+    if [ "$SELINUX_STATUS" = "Enforcing" ]; then
+        # 为 Mihomo 二进制设置可执行上下文
+        chcon u:object_r:system_file:s0 "$KERNEL_BIN" 2>/dev/null
+        for script in "$SCRIPT_DIR/core.sh" "$SCRIPT_DIR/monitor.sh" "$SCRIPT_DIR/NoAdsService.sh"; do
+            chcon u:object_r:system_file:s0 "$script" 2>/dev/null
+        done
+        echo "SELinux contexts applied." >> "$LOG_FILE"
+    fi
 fi
+
+# 4. 启动核心（后台执行，避免阻塞 service 阶段）
+nohup sh "$SCRIPT_DIR/core.sh" start >> "$LOG_FILE" 2>&1 &
 
 # 5. 启动监控和去广告服务（后台）
 nohup sh "$SCRIPT_DIR/monitor.sh" >> "$LOG_FILE" 2>&1 &
