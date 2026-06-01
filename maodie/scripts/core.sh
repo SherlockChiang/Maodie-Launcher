@@ -24,6 +24,9 @@ rotate_log() {
 }
 
 detect_iptables_wait() {
+    # 记忆化：单次脚本调用内最多探测一次（restart=stop+start 时避免重复跑 iptables --help）
+    [ -n "$IPT_WAIT_DETECTED" ] && return
+    IPT_WAIT_DETECTED=1
     if iptables --help 2>/dev/null | grep -q "wait"; then
         if iptables --help 2>/dev/null | grep -q "wait interval"; then
             IPT_WAIT="-w 2"
@@ -173,23 +176,10 @@ stop() {
         fi
         rm -f "$PID_FILE"
     else
-        for cmdline in /proc/[0-9]*/cmdline; do
-            [ -r "$cmdline" ] || continue
-            if tr '\0' ' ' < "$cmdline" 2>/dev/null | grep -Fq "$KERNEL_BIN"; then
-                pid=${cmdline#/proc/}
-                pid=${pid%/cmdline}
-                kill -15 "$pid" 2>/dev/null
-            fi
-        done
-        sleep 1
-        for cmdline in /proc/[0-9]*/cmdline; do
-            [ -r "$cmdline" ] || continue
-            if tr '\0' ' ' < "$cmdline" 2>/dev/null | grep -Fq "$KERNEL_BIN"; then
-                pid=${cmdline#/proc/}
-                pid=${pid%/cmdline}
-                kill -9 "$pid" 2>/dev/null
-            fi
-        done
+        # 无 PID 文件时，使用 pkill 兜底清理（替代耗时的 /proc 遍历）
+        pkill -15 -f "Mihomo" 2>/dev/null
+        sleep 2
+        pkill -9 -f "Mihomo" 2>/dev/null
     fi
 
     clear_iptables
@@ -204,10 +194,19 @@ status() {
     fi
 }
 
+# 幂等地重铺系统调优与 iptables 规则（不重启内核）。
+# 用于看门狗在 system_server 运行时重启、netd 冲掉规则后自愈。
+# apply_tuning / apply_iptables 本身幂等（sysctl 同值写入、iptables -C || -I），
+# 规则在位时为空操作；日志重定向到 /dev/null 避免每 30s 刷屏 kernel.log。
+reapply() {
+    ( LOG_FILE=/dev/null; apply_tuning; apply_iptables )
+}
+
 case "$1" in
     start)   start ;;
     stop)    stop ;;
     restart) stop; sleep 1; start ;;
+    reapply) reapply ;;
     status)  status ;;
-    *)       echo "Usage: $0 {start|stop|restart|status}" ;;
+    *)       echo "Usage: $0 {start|stop|restart|reapply|status}" ;;
 esac

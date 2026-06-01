@@ -1,4 +1,5 @@
 *.sh text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+*.list text eol=lf
 META-INF/com/google/android/* text eol=lf

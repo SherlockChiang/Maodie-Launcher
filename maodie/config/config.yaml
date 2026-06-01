@@ -30,7 +30,7 @@ tun:
 
 dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 127.0.0.1:1053   # 仅本机监听；TUN dns-hijack 不依赖对外监听，避免暴露给局域网
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   respect-rules: true

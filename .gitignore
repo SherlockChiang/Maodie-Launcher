@@ -1,3 +1,14 @@
 Maodie-Launcher.zip
 /apk
 maodie/config/ASN.mmdb
+
+# 打包产物
+Maodie-Launcher-v*.zip
+
+# 调试/日志转储（排障临时文件，不入库）
+dmesg_dump.txt
+ksu_dmesg*.txt
+logcat*.txt
+ps_output.txt
+pstore*.txt
+debug_crash*.sh

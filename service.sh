@@ -31,13 +31,17 @@ until [ "$(getprop sys.boot_completed)" = "1" ]; do
 done
 echo "Boot completed." >> "$LOG_FILE"
 
+# 1.5 等待系统服务完全稳定（避免 TUN 接口创建干扰 WifiNative 等系统组件）
+sleep 10
+echo "Post-boot delay done." >> "$LOG_FILE"
+
 # 2. 网络栈检测 (通用)
 echo "Checking loopback network..." >> "$LOG_FILE"
 wait_count=0
 while ! ping -c 1 -W 1 127.0.0.1 >/dev/null 2>&1; do
     sleep 1
     wait_count=$((wait_count+1))
-    if [ $wait_count -gt 90 ]; then
+    if [ $wait_count -gt 30 ]; then
         echo "Warning: Network stack timeout! Forcing start anyway." >> "$LOG_FILE"
         break
     fi
