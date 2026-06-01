@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.249.1
+🚀 **内核更新**
+- 版本: v1.19.26
 
 ### 📝 变更日志 (Changelog):
 - (No new commits)
 
-📌 **Release Tag**: v20260531-3d1b509
+📌 **Release Tag**: v20260601-52579ff
