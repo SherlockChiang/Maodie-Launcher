@@ -3,8 +3,6 @@
 MODDIR="$(dirname "$0")"
 CONFIG_FILE="$MODDIR/maodie/config/config.yaml"
 CORE_SCRIPT="$MODDIR/maodie/scripts/core.sh"
-WEBUI_DIR="$MODDIR/maodie/config/webui"
-AUTOLOGIN_FILE="$WEBUI_DIR/maodie-autologin.html"
 CONTROLLER_URL="http://127.0.0.1:9090"
 
 get_config_secret() {
@@ -51,68 +49,16 @@ set_config_secret() {
     fi
 }
 
-ensure_autologin_page() {
-    mkdir -p "$WEBUI_DIR"
-    cat > "$AUTOLOGIN_FILE" <<'EOF'
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Maodie Launcher</title>
-  <style>
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#101318;color:#eef1f6;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    main{max-width:28rem;padding:1.5rem;text-align:center}
-    h1{font-size:1.1rem;margin:0 0 .5rem}
-    p{margin:.25rem 0;color:#aab2bf;line-height:1.5}
-  </style>
-</head>
-<body>
-  <main>
-    <h1>正在打开 Maodie 面板</h1>
-    <p>正在写入本地授权信息，请稍候...</p>
-  </main>
-  <script>
-    (function () {
-      var raw = window.location.hash ? window.location.hash.slice(1) : "";
-      if (!raw) {
-        document.querySelector("p").textContent = "缺少授权信息，请重新从 KernelSU 模块按钮打开。";
-        return;
-      }
-
-      var secret = decodeURIComponent(escape(window.atob(raw)));
-      var endpointId = "maodie-local";
-      var endpointUrl = "http://127.0.0.1:9090";
-      var endpoints = [];
-
-      try {
-        endpoints = JSON.parse(window.localStorage.getItem("endpointList") || "[]");
-        if (!Array.isArray(endpoints)) endpoints = [];
-      } catch (_) {
-        endpoints = [];
-      }
-
-      var found = false;
-      endpoints = endpoints.map(function (endpoint) {
-        if (endpoint && (endpoint.id === endpointId || endpoint.url === endpointUrl)) {
-          found = true;
-          return { id: endpointId, url: endpointUrl, secret: secret };
-        }
-        return endpoint;
-      }).filter(Boolean);
-
-      if (!found) {
-        endpoints.unshift({ id: endpointId, url: endpointUrl, secret: secret });
-      }
-
-      window.localStorage.setItem("endpointList", JSON.stringify(endpoints));
-      window.localStorage.setItem("selectedEndpoint", endpointId);
-      window.location.replace("/ui");
-    })();
-  </script>
-</body>
-</html>
-EOF
+url_encode() {
+    printf '%s' "$1" | sed \
+        -e 's/%/%25/g' \
+        -e 's/ /%20/g' \
+        -e 's/#/%23/g' \
+        -e 's/&/%26/g' \
+        -e 's/+/%2B/g' \
+        -e 's/?/%3F/g' \
+        -e 's/=/%3D/g' \
+        -e 's|/|%2F|g'
 }
 
 secret=$(get_config_secret "$CONFIG_FILE")
@@ -131,10 +77,8 @@ if [ -x "$CORE_SCRIPT" ]; then
     fi
 fi
 
-ensure_autologin_page
-
-secret_b64=$(printf '%s' "$secret" | base64 2>/dev/null | tr -d '\n\r')
-URL="$CONTROLLER_URL/ui/maodie-autologin.html#${secret_b64}"
+secret_query=$(url_encode "$secret")
+URL="$CONTROLLER_URL/ui/#/setup?hostname=127.0.0.1&port=9090&http=1&secret=${secret_query}"
 
 am start -a android.intent.action.VIEW -d "$URL" --user 0 >/dev/null 2>&1 \
     || am start -a android.intent.action.VIEW -d "$URL" >/dev/null 2>&1
