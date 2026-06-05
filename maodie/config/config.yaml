@@ -181,8 +181,8 @@ rules:
   - AND,((NETWORK,UDP),(RULE-SET,private_domain)),直连
   - AND,((NETWORK,UDP),(RULE-SET,zhihu_domain)),直连
   - AND,((NETWORK,UDP),(RULE-SET,cn_domain)),直连
-  - AND,((NETWORK,UDP),(RULE-SET,private_ip)),直连,no-resolve
-  - AND,((NETWORK,UDP),(RULE-SET,cn_ip)),直连,no-resolve
+  - AND,((NETWORK,UDP),(RULE-SET,private_ip)),直连
+  - AND,((NETWORK,UDP),(RULE-SET,cn_ip)),直连
 
   - RULE-SET,private_domain,直连
   - RULE-SET,zhihu_domain,直连
