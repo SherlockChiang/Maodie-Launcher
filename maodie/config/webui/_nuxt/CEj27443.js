@@ -1,2 +1,0 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./D9V-Zr_D.js","./BgZvvNZ0.js","./entry.CBu8TikQ.css"])))=>i.map(i=>d[i]);
-import{Gn as e,Vt as t}from"#entry";var n=null;function r(){return n||=t(()=>import(`./D9V-Zr_D.js`).then(t=>e(t.default,1)).then(e=>{let t=e.default;return t.setOptions({time:{}}),t}),__vite__mapDeps([0,1,2]),import.meta.url),n}export{r as t};
