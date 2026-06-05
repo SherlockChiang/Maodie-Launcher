@@ -11,22 +11,47 @@ CORE_SCRIPT="$MOD_DIR/maodie/scripts/core.sh"
 RUN_DIR="$MOD_DIR/maodie/run"
 PID_FILE="$RUN_DIR/kernel.pid"
 DISABLE_FILE="$MOD_DIR/disable"
-LOCK_FILE="$RUN_DIR/monitor.lock"
+LOCK_DIR="$RUN_DIR/monitor.lock"
 LOG="$RUN_DIR/monitor.log"
 LOG_MAX=262144          # 256KB
 CHECK_INTERVAL=30       # 巡检间隔（秒）
 
 mkdir -p "$RUN_DIR"
 
-# 单实例保护（与 NoAdsService 一致的 lock 文件方式）
-if [ -f "$LOCK_FILE" ]; then
-    old_pid=$(cat "$LOCK_FILE" 2>/dev/null)
-    if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+script_alive() {
+    check_pid="$1"
+    [ -n "$check_pid" ] || return 1
+    kill -0 "$check_pid" 2>/dev/null || return 1
+    [ -r "/proc/$check_pid/cmdline" ] && grep -aq "monitor.sh" "/proc/$check_pid/cmdline" 2>/dev/null
+}
+
+read_lock_pid() {
+    if [ -d "$LOCK_DIR" ]; then
+        cat "$LOCK_DIR/pid" 2>/dev/null
+    elif [ -f "$LOCK_DIR" ]; then
+        cat "$LOCK_DIR" 2>/dev/null
+    fi
+}
+
+cleanup_lock() {
+    lock_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+    [ "$lock_pid" = "$$" ] && rm -rf "$LOCK_DIR"
+}
+
+while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    old_pid=$(read_lock_pid)
+    if script_alive "$old_pid"; then
         exit 0
     fi
-fi
-echo $$ > "$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"; exit 0' INT TERM
+    if [ -d "$LOCK_DIR" ]; then
+        rm -rf "$LOCK_DIR"
+    else
+        rm -f "$LOCK_DIR"
+    fi
+done
+echo $$ > "$LOCK_DIR/pid"
+trap cleanup_lock EXIT
+trap 'exit 0' INT TERM
 
 log() {
     if [ -f "$LOG" ] && [ "$(wc -c < "$LOG" 2>/dev/null || echo 0)" -gt "$LOG_MAX" ]; then

@@ -341,13 +341,14 @@
 
         const DNS_DEFAULT = `dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 127.0.0.1:1053
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   respect-rules: true
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
+    - "rule-set:zhihu_domain"
     - "rule-set:google_fcm"
   default-nameserver:
     - 223.5.5.5
@@ -359,19 +360,20 @@
     - https://dns.cloudflare.com/dns-query#h3
     - https://dns.google/dns-query#h3
   nameserver-policy:
-    "rule-set:private_domain,cn_domain":
+    "rule-set:private_domain,cn_domain,zhihu_domain":
       - 223.5.5.5
       - 119.29.29.29`;
 
         const DNS_FIRSTTIME = `dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 127.0.0.1:1053
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   respect-rules: true
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
+    - "rule-set:zhihu_domain"
     - "rule-set:google_fcm"
   default-nameserver:
     - 223.5.5.5
@@ -383,19 +385,20 @@
     - 223.5.5.5
     - 119.29.29.29
   nameserver-policy:
-    "rule-set:private_domain,cn_domain":
+    "rule-set:private_domain,cn_domain,zhihu_domain":
       - 223.5.5.5
       - 119.29.29.29`;
 
         const DNS_AGH = `dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 127.0.0.1:1053
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   respect-rules: true
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
+    - "rule-set:zhihu_domain"
     - "rule-set:google_fcm"
   default-nameserver:
     - 223.5.5.5
@@ -405,7 +408,7 @@
     - https://dns.cloudflare.com/dns-query#h3
     - https://dns.google/dns-query#h3
   nameserver-policy:
-    "rule-set:private_domain,cn_domain":
+    "rule-set:private_domain,cn_domain,zhihu_domain":
       - 127.0.0.1:5591`;
 
         const fetchConfigText = async () => {

@@ -4,7 +4,34 @@
 
 MODDIR="$(dirname "$0")"
 PID_FILE="$MODDIR/maodie/run/kernel.pid"
-LOCK_FILE="$MODDIR/maodie/run/adblock.lock"
+ADB_LOCK="$MODDIR/maodie/run/adblock.lock"
+MONITOR_LOCK="$MODDIR/maodie/run/monitor.lock"
+
+read_lock_pid() {
+    lock_path="$1"
+    if [ -d "$lock_path" ]; then
+        cat "$lock_path/pid" 2>/dev/null
+    elif [ -f "$lock_path" ]; then
+        cat "$lock_path" 2>/dev/null
+    fi
+}
+
+remove_lock() {
+    lock_path="$1"
+    if [ -d "$lock_path" ]; then
+        rm -rf "$lock_path"
+    else
+        rm -f "$lock_path"
+    fi
+}
+
+script_alive() {
+    check_pid="$1"
+    script_name="$2"
+    [ -n "$check_pid" ] || return 1
+    kill -0 "$check_pid" 2>/dev/null || return 1
+    [ -r "/proc/$check_pid/cmdline" ] && grep -aq "$script_name" "/proc/$check_pid/cmdline" 2>/dev/null
+}
 
 # 1. 通过 PID 文件停止上次残留的内核进程
 if [ -f "$PID_FILE" ]; then
@@ -20,15 +47,15 @@ pkill -9 -f "Mihomo" 2>/dev/null || true
 
 # 3. 清理上次残留的监控看门狗进程及其 lock
 pkill -f "$MODDIR/maodie/scripts/monitor.sh" 2>/dev/null
-rm -f "$MODDIR/maodie/run/monitor.lock"
+remove_lock "$MONITOR_LOCK"
 
 # 4. 清理去广告服务锁文件
-if [ -f "$LOCK_FILE" ]; then
-    pid=$(cat "$LOCK_FILE" 2>/dev/null)
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+if [ -d "$ADB_LOCK" ] || [ -f "$ADB_LOCK" ]; then
+    pid=$(read_lock_pid "$ADB_LOCK")
+    if script_alive "$pid" "NoAdsService.sh"; then
         kill -9 "$pid" 2>/dev/null
     fi
-    rm -f "$LOCK_FILE"
+    remove_lock "$ADB_LOCK"
 fi
 
 # 5. iptables 清理放到后台执行，避免阻塞 post-fs-data 阶段

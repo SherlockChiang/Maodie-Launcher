@@ -9,6 +9,7 @@ RUN_DIR="$MOD_DIR/maodie/run"
 PID_FILE="$RUN_DIR/kernel.pid"
 LOG_FILE="$RUN_DIR/kernel.log"
 LOG_MAX_SIZE=524288  # 512KB
+WAIT_MODE_FILE="$RUN_DIR/iptables_wait.mode"
 
 API_LEVEL=$(getprop ro.build.version.sdk)
 
@@ -24,22 +25,49 @@ rotate_log() {
 }
 
 detect_iptables_wait() {
-    # 记忆化：单次脚本调用内最多探测一次（restart=stop+start 时避免重复跑 iptables --help）
+    # 记忆化：单次脚本调用内最多探测一次，并跨 reapply 调用缓存探测结果。
     [ -n "$IPT_WAIT_DETECTED" ] && return
     IPT_WAIT_DETECTED=1
+
+    if [ -f "$WAIT_MODE_FILE" ]; then
+        local cached_mode=$(cat "$WAIT_MODE_FILE" 2>/dev/null)
+        case "$cached_mode" in
+            interval)
+                IPT_WAIT="-w 2"
+                IPV6_WAIT="-w 2"
+                return
+                ;;
+            wait)
+                IPT_WAIT="-w"
+                IPV6_WAIT="-w"
+                return
+                ;;
+            none)
+                IPT_WAIT=""
+                IPV6_WAIT=""
+                return
+                ;;
+        esac
+    fi
+
+    local wait_mode
     if iptables --help 2>/dev/null | grep -q "wait"; then
         if iptables --help 2>/dev/null | grep -q "wait interval"; then
             IPT_WAIT="-w 2"
             IPV6_WAIT="-w 2"
+            wait_mode="interval"
         else
             IPT_WAIT="-w"
             IPV6_WAIT="-w"
+            wait_mode="wait"
         fi
     else
         IPT_WAIT=""
         IPV6_WAIT=""
+        wait_mode="none"
         echo "Info: 当前系统 iptables 不支持等待锁，已降级运行。" >> "$LOG_FILE"
     fi
+    echo "$wait_mode" > "$WAIT_MODE_FILE" 2>/dev/null
 }
 
 safe_sysctl() {
@@ -197,9 +225,13 @@ status() {
 # 幂等地重铺系统调优与 iptables 规则（不重启内核）。
 # 用于看门狗在 system_server 运行时重启、netd 冲掉规则后自愈。
 # apply_tuning / apply_iptables 本身幂等（sysctl 同值写入、iptables -C || -I），
-# 规则在位时为空操作；日志重定向到 /dev/null 避免每 30s 刷屏 kernel.log。
+# 规则在位时为空操作；临时静音日志避免每 30s 刷屏 kernel.log。
 reapply() {
-    ( LOG_FILE=/dev/null; apply_tuning; apply_iptables )
+    local old_log="$LOG_FILE"
+    LOG_FILE=/dev/null
+    apply_tuning
+    apply_iptables
+    LOG_FILE="$old_log"
 }
 
 case "$1" in

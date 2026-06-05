@@ -243,7 +243,7 @@ jobs:
           mkdir -p maodie/run
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
 
-          zip -r "$FINAL_ZIP" META-INF maodie webroot customize.sh module.prop service.sh uninstall.sh action.sh
+          zip -r "$FINAL_ZIP" META-INF maodie webroot customize.sh module.prop service.sh post-fs-data.sh uninstall.sh action.sh
 
           if [ ! -f "$FINAL_ZIP" ]; then
             echo "❌ 错误：文件未生成！"

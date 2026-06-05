@@ -14,6 +14,68 @@ NEW_CONFIG="$MODPATH/maodie/config/config.yaml"
 TEMP_PROVIDERS="$MODPATH/user_providers.yaml"
 FINAL_CONFIG="$MODPATH/maodie/config/config.yaml.final"
 
+get_config_secret() {
+  config_path="$1"
+  [ -f "$config_path" ] || return
+  awk '
+    /^[[:space:]]*secret:[[:space:]]*/ {
+      sub(/^[[:space:]]*secret:[[:space:]]*/, "")
+      sub(/[[:space:]]*#.*/, "")
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+      gsub(/^"/, "")
+      gsub(/"$/, "")
+      gsub(/^'\''/, "")
+      gsub(/'\''$/, "")
+      print
+      exit
+    }
+  ' "$config_path"
+}
+
+generate_api_secret() {
+  secret=""
+  if [ -r /proc/sys/kernel/random/uuid ]; then
+    secret=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-')
+  fi
+  if [ -z "$secret" ]; then
+    secret=$(tr -dc 'A-Za-z0-9' < /dev/urandom 2>/dev/null | head -c 32)
+  fi
+  if [ -z "$secret" ]; then
+    secret="$(date +%s)$$"
+  fi
+  printf '%s' "$secret"
+}
+
+set_config_secret() {
+  secret_value="$1"
+  escaped_secret=$(printf '%s' "$secret_value" | sed 's/[|&]/\\&/g')
+  if grep -q '^[[:space:]]*secret:' "$NEW_CONFIG"; then
+    sed -i "s|^[[:space:]]*secret:.*|secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App|" "$NEW_CONFIG"
+  elif grep -q '^external-controller:' "$NEW_CONFIG"; then
+    sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App|" "$NEW_CONFIG"
+  else
+    printf '\nsecret: "%s"  # 安装时自动生成；请勿泄露给其他 App\n' "$secret_value" >> "$NEW_CONFIG"
+  fi
+}
+
+ensure_api_secret() {
+  current_secret=$(get_config_secret "$NEW_CONFIG")
+  if [ -z "$current_secret" ] && [ -f "$OLD_CONFIG" ]; then
+    old_secret=$(get_config_secret "$OLD_CONFIG")
+    if [ -n "$old_secret" ]; then
+      set_config_secret "$old_secret"
+      ui_print "  ✅ 已沿用旧配置 API secret"
+      return
+    fi
+  fi
+
+  if [ -z "$current_secret" ]; then
+    new_secret=$(generate_api_secret)
+    set_config_secret "$new_secret"
+    ui_print "  ✅ 已生成随机 API secret"
+  fi
+}
+
 ui_print "- 正在哈气..."
 
 ui_print "- 解压核心文件..."
@@ -109,3 +171,5 @@ if [ -d "$EXISTING_DIR" ]; then
 else
   ui_print "  首次安装，无需迁移。"
 fi
+
+ensure_api_secret

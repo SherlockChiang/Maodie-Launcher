@@ -7,7 +7,7 @@ ipv6: true
 unified-delay: true
 tcp-concurrent: true
 external-controller: 127.0.0.1:9090
-secret: ""  # 建议设置一个密码，防止局域网内其他设备未授权访问控制面板
+secret: ""  # 安装时 customize.sh 会自动生成随机值；手动部署请自行设置
 
 external-ui: /data/adb/modules/Maodie-Launcher/maodie/config/webui
 external-ui-url: /ui
@@ -176,6 +176,14 @@ rules:
   - DOMAIN-SUFFIX,googleapis.cn,Google
   - DOMAIN-SUFFIX,xn--ngstr-lra8j.com,Google
   - RULE-SET,ad,REJECT
+
+  # 大陆/私有 UDP 优先直连，避免不支持 UDP 的代理节点继续下探到泛规则
+  - AND,((NETWORK,UDP),(RULE-SET,private_domain)),直连
+  - AND,((NETWORK,UDP),(RULE-SET,zhihu_domain)),直连
+  - AND,((NETWORK,UDP),(RULE-SET,cn_domain)),直连
+  - AND,((NETWORK,UDP),(RULE-SET,private_ip)),直连,no-resolve
+  - AND,((NETWORK,UDP),(RULE-SET,cn_ip)),直连,no-resolve
+
   - RULE-SET,private_domain,直连
   - RULE-SET,zhihu_domain,直连
   - RULE-SET,cn_domain,直连
