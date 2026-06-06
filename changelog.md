@@ -1,7 +1,7 @@
-📦 **手动发布**
-- 版本: v20260605-9f187f0
-- 基础 Commit: 9f187f0
+🎨 **面板更新**
+- 版本: v1.251.3
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (9f187f0)
-- fix: open webui setup with secret (dfede01)
+- (No new commits)
+
+📌 **Release Tag**: v20260606-1861c91
