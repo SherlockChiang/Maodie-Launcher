@@ -30,14 +30,15 @@ tun:
 
 dns:
   enable: true
-  listen: 127.0.0.1:1053   # 仅本机监听；TUN dns-hijack 不依赖对外监听，避免暴露给局域网
+  ipv6: true
+  listen: 127.0.0.1:1053 
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
+  fake-ip-range6: fdfe:dcba:9876::1/64
   respect-rules: true
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
-    - "rule-set:zhihu_domain"
   
   default-nameserver:
     - 223.5.5.5
@@ -46,10 +47,10 @@ dns:
     - 223.5.5.5
     - 119.29.29.29
   nameserver:
-    - https://dns.cloudflare.com/dns-query#h3
-    - https://dns.google/dns-query#h3
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
   nameserver-policy:
-    "rule-set:private_domain,cn_domain,zhihu_domain":
+    "rule-set:private_domain,cn_domain":
       - 223.5.5.5
       - 119.29.29.29
 
@@ -179,13 +180,11 @@ rules:
 
   # 大陆/私有 UDP 优先直连，避免不支持 UDP 的代理节点继续下探到泛规则
   - AND,((NETWORK,UDP),(RULE-SET,private_domain)),直连
-  - AND,((NETWORK,UDP),(RULE-SET,zhihu_domain)),直连
   - AND,((NETWORK,UDP),(RULE-SET,cn_domain)),直连
   - AND,((NETWORK,UDP),(RULE-SET,private_ip)),直连
   - AND,((NETWORK,UDP),(RULE-SET,cn_ip)),直连
 
   - RULE-SET,private_domain,直连
-  - RULE-SET,zhihu_domain,直连
   - RULE-SET,cn_domain,直连
 
   - RULE-SET,ai_domain,AI
@@ -216,9 +215,6 @@ rule-providers:
   cn_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
-  zhihu_domain:
-    <<: *domain
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/zhihu.mrs"
   ai_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ai-!cn.mrs"
