@@ -1,7 +1,7 @@
-📦 **手动发布**
-- 版本: v20260608-7a00118
-- 基础 Commit: 7a00118
+🎨 **面板更新**
+- 版本: v1.254.2
 
 ### 📝 变更日志 (Changelog):
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (7a00118)
-- dns optimization (1272741)
+- (No new commits)
+
+📌 **Release Tag**: v20260614-3517e2c
