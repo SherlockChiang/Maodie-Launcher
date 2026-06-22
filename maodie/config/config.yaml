@@ -6,11 +6,15 @@ log-level: info
 ipv6: true
 unified-delay: true
 tcp-concurrent: true
+find-process-mode: off
 external-controller: 127.0.0.1:9090
 secret: ""  # 安装时 customize.sh 会自动生成随机值；手动部署请自行设置
 
+profile:
+  store-selected: true
+  store-fake-ip: true
+
 external-ui: /data/adb/modules/Maodie-Launcher/maodie/config/webui
-external-ui-url: /ui
 
 geo-auto-update: true
 geo-update-interval: 72  
@@ -39,6 +43,14 @@ dns:
   fake-ip-filter:
     - "rule-set:private_domain"
     - "rule-set:cn_domain"
+    - "rule-set:google_fcm"
+    - "+.lan"
+    - "+.local"
+    - "+.pool.ntp.org"
+    - "time.*.com"
+    - "ntp.*.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
   
   default-nameserver:
     - 223.5.5.5
@@ -73,7 +85,7 @@ sniffer:
     - '*.xiaomi.cn'
 
 p: &p
-  {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 300}}
+  {type: http, interval: 21600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 300, lazy: true, timeout: 5000}}
 
 proxies: 
   - name: "直连"
