@@ -52,7 +52,7 @@ set_config_secret() {
   if grep -q '^[[:space:]]*secret:' "$NEW_CONFIG"; then
     sed -i "s|^[[:space:]]*secret:.*|secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App|" "$NEW_CONFIG"
   elif grep -q '^external-controller:' "$NEW_CONFIG"; then
-    sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App|" "$NEW_CONFIG"
+    sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App" "$NEW_CONFIG"
   else
     printf '\nsecret: "%s"  # 安装时自动生成；请勿泄露给其他 App\n' "$secret_value" >> "$NEW_CONFIG"
   fi

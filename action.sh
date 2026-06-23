@@ -43,7 +43,7 @@ set_config_secret() {
     if grep -q '^[[:space:]]*secret:' "$CONFIG_FILE"; then
         sed -i "s|^[[:space:]]*secret:.*|secret: \"$escaped_secret\"  # action.sh 自动生成；请勿泄露给其他 App|" "$CONFIG_FILE"
     elif grep -q '^external-controller:' "$CONFIG_FILE"; then
-        sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # action.sh 自动生成；请勿泄露给其他 App|" "$CONFIG_FILE"
+        sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # action.sh 自动生成；请勿泄露给其他 App" "$CONFIG_FILE"
     else
         printf '\nsecret: "%s"  # action.sh 自动生成；请勿泄露给其他 App\n' "$secret_value" >> "$CONFIG_FILE"
     fi
