@@ -7,6 +7,7 @@ ipv6: true
 unified-delay: true
 tcp-concurrent: true
 find-process-mode: "off"
+global-client-fingerprint: chrome
 external-controller: 127.0.0.1:9090
 secret: ""  # 安装时 customize.sh 会自动生成随机值；手动部署请自行设置
 
