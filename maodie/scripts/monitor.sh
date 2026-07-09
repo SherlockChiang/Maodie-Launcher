@@ -99,7 +99,7 @@ tun_route_healthy() {
     ip route show table "$TUN_TABLE" 2>/dev/null | grep -q "default dev $TUN_IFACE" || return 1
     ip rule show 2>/dev/null | grep -q "lookup $TUN_TABLE" || return 1
 
-    if [ -f /proc/net/if_inet6 ]; then
+    if [ -f /proc/net/if_inet6 ] && ip -6 rule show 2>/dev/null | grep -q "lookup $TUN_TABLE"; then
         ip -6 route show table "$TUN_TABLE" 2>/dev/null | grep -q "default dev $TUN_IFACE" || return 1
     fi
 
