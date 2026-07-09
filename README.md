@@ -34,15 +34,15 @@
 
 ## 🛠️ 安装与使用
 
-在Ksu管理器中直接刷入release中的模块
+在 KSU/APatch/Magisk 管理器中直接刷入 release 中的模块。
 
-准备好您的 config.yaml 并正确填写您自己的订阅链接
+首次使用前，请编辑 `maodie/config/config.yaml`，把 `proxy-providers` 中的 `url: "请填写您自己的代理地址"` 替换为您自己的订阅链接；占位符不替换时，核心可能可以启动，但节点不可用。
 
 WebUI 访问：
 
 默认地址：http://127.0.0.1:9090/ui
 
-Secret：默认为空（建议在 config 中修改）。
+Secret：安装或点击模块 action 时会自动生成并写入 `maodie/config/config.yaml`。管理器中的 action 按钮会带上 secret 打开 WebUI；不要分享带 secret 的 WebUI 链接。
 
 ## 🚦 特别需知
 由于上游issue：https://github.com/MetaCubeX/mihomo/issues/1362
@@ -51,7 +51,9 @@ Secret：默认为空（建议在 config 中修改）。
 
 目前的最新版本没有根据包名的规则所以也可以尝试一下
 
-去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于beta阶段，欢迎测试**由于上游变动较大谨慎测试，目前本模块已经缝合了去广告模块的部分功能**
+去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于 beta 阶段，欢迎测试。由于上游变动较大，请谨慎测试；目前本模块已经缝合了去广告模块的部分功能。
+
+去广告功能会按 `maodie/config/adblock.list` 清空指定广告路径并设置 immutable 标记，卸载时会尝试解除。请不要把重要 App 数据目录加入该清单。
 
 ## 🤝 鸣谢
 
