@@ -1,15 +1,13 @@
 ﻿# Maodie Launcher - 一键打包脚本
-# 用法: powershell -ExecutionPolicy Bypass -File build.ps1 [-SkipAsn] [-CleanOnly]
+# 用法: powershell -ExecutionPolicy Bypass -File build.ps1 [-CleanOnly]
 
 param(
-    [switch]$SkipAsn,
     [switch]$CleanOnly
 )
 
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
-$AsnDb       = Join-Path $ProjectRoot "maodie\config\ASN.mmdb"
 $ModuleProp  = Join-Path $ProjectRoot "module.prop"
 
 $IncludeItems = @(
@@ -51,35 +49,6 @@ function Get-GitHash {
     return "local"
 }
 
-function Download-Asn {
-    $url = "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-ASN.mmdb"
-    $dir = Split-Path $AsnDb -Parent
-
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    }
-
-    if (Test-Path $AsnDb) {
-        $age = (Get-Date) - (Get-Item $AsnDb).LastWriteTime
-        if ($age.TotalDays -lt 30) {
-            Write-Ok "ASN 数据库已缓存 ($([int]$age.TotalDays) 天前)，跳过下载"
-            return
-        }
-    }
-
-    Write-Step "下载 ASN 数据库..."
-    try {
-        $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "Maodie-Launcher/1.0")
-        $wc.DownloadFile($url, $AsnDb)
-        $sizeMB = [math]::Round((Get-Item $AsnDb).Length / 1MB, 1)
-        Write-Ok "ASN 数据库下载完成: $sizeMB MB"
-    } catch {
-        Write-Warn "ASN 数据库下载失败: $($_.Exception.Message)"
-        Write-Warn "模块仍可打包，但 geo-ip 规则可能不完整"
-    }
-}
-
 # ─── 清理 ─────────────────────────────────────────────────────
 if ($CleanOnly) {
     Write-Step "清理构建产物..."
@@ -117,12 +86,6 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 Write-Ok "所有必要文件就绪"
-
-if (-not $SkipAsn) {
-    Download-Asn
-} else {
-    Write-Step "跳过 ASN 数据库下载 (-SkipAsn)"
-}
 
 $runDir = Join-Path $ProjectRoot "maodie\run"
 if (-not (Test-Path $runDir)) {

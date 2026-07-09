@@ -17,11 +17,6 @@ profile:
 
 external-ui: /data/adb/modules/Maodie-Launcher/maodie/config/webui
 
-geo-auto-update: true
-geo-update-interval: 72  
-geox-url:
-  asn: "https://testingcf.jsdelivr.net/gh/Loyalsoldier/geoip@release/GeoLite2-ASN.mmdb"
-
 tun:
   enable: true
   stack: system
@@ -207,7 +202,6 @@ rules:
   - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
 
-  - IP-ASN,132203,直连,no-resolve
   - RULE-SET,private_ip,直连,no-resolve
   - RULE-SET,cn_ip,直连,no-resolve
   - RULE-SET,google_ip,Google

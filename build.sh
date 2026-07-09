@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Maodie Launcher - 一键打包脚本 (Bash)
-# 用法: bash build.sh [--skip-asn] [--clean]
+# 用法: bash build.sh [--clean]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ASN_DB="$SCRIPT_DIR/maodie/config/ASN.mmdb"
 MODULE_PROP="$SCRIPT_DIR/module.prop"
 ZIP_NAME=""
 
@@ -17,15 +16,12 @@ warn()  { echo -e "${YELLOW}   $1${NC}"; }
 err()   { echo -e "${RED}   $1${NC}"; }
 
 # ─── 参数解析 ─────────────────────────────────────────────────
-SKIP_ASN=false
 CLEAN_ONLY=false
 for arg in "$@"; do
     case "$arg" in
-        --skip-asn)  SKIP_ASN=true ;;
         --clean)     CLEAN_ONLY=true ;;
         -h|--help)
-            echo "用法: bash build.sh [--skip-asn] [--clean]"
-            echo "  --skip-asn  跳过 ASN 数据库下载"
+            echo "用法: bash build.sh [--clean]"
             echo "  --clean     仅清理构建产物"
             exit 0
             ;;
@@ -68,31 +64,6 @@ get_git_hash() {
     fi
 }
 
-download_asn() {
-    local url="https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-ASN.mmdb"
-    local dir
-    dir=$(dirname "$ASN_DB")
-    mkdir -p "$dir"
-
-    if [ -f "$ASN_DB" ]; then
-        local age_days
-        age_days=$(( ($(date +%s) - $(stat -c %Y "$ASN_DB" 2>/dev/null || stat -f %m "$ASN_DB" 2>/dev/null)) / 86400 ))
-        if [ "$age_days" -lt 30 ]; then
-            ok "ASN 数据库已缓存 (${age_days} 天前)，跳过下载"
-            return
-        fi
-    fi
-
-    step "下载 ASN 数据库..."
-    if curl -fL --retry 3 --retry-delay 5 -o "$ASN_DB" "$url" 2>/dev/null; then
-        local size_mb
-        size_mb=$(awk "BEGIN {printf \"%.1f\", $(stat -c %s "$ASN_DB" 2>/dev/null || stat -f %z "$ASN_DB" 2>/dev/null) / 1048576}")
-        ok "ASN 数据库下载完成: ${size_mb} MB"
-    else
-        warn "ASN 数据库下载失败，模块仍可打包但 geo-ip 规则可能不完整"
-    fi
-}
-
 # ─── 主流程 ───────────────────────────────────────────────────
 echo ""
 echo -e "${MAGENTA}========================================${NC}"
@@ -117,13 +88,6 @@ if [ ${#missing[@]} -gt 0 ]; then
     exit 1
 fi
 ok "所有必要文件就绪"
-
-# ASN
-if ! $SKIP_ASN; then
-    download_asn
-else
-    step "跳过 ASN 数据库下载 (--skip-asn)"
-fi
 
 # 确保 run 目录
 mkdir -p "$SCRIPT_DIR/maodie/run"
