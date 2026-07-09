@@ -129,7 +129,7 @@ is_running() {
         local pid=$(cat "$PID_FILE" 2>/dev/null)
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             # 校验是 Mihomo 本身，避免重启后 PID 被其它进程复用导致误判
-            if [ -r "/proc/$pid/cmdline" ] && grep -aq "Mihomo" "/proc/$pid/cmdline" 2>/dev/null; then
+            if [ -r "/proc/$pid/cmdline" ] && grep -aq "$KERNEL_BIN" "/proc/$pid/cmdline" 2>/dev/null; then
                 return 0
             fi
         fi
@@ -204,10 +204,10 @@ stop() {
         fi
         rm -f "$PID_FILE"
     else
-        # 无 PID 文件时，使用 pkill 兜底清理（替代耗时的 /proc 遍历）
-        pkill -15 -f "Mihomo" 2>/dev/null
+        # 无 PID 文件时，仅清理本模块核心，避免误伤其它 Mihomo 实例。
+        pkill -15 -f "$KERNEL_BIN" 2>/dev/null
         sleep 2
-        pkill -9 -f "Mihomo" 2>/dev/null
+        pkill -9 -f "$KERNEL_BIN" 2>/dev/null
     fi
 
     clear_iptables

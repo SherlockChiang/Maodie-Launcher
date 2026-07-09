@@ -3,6 +3,7 @@
 # 注意：此阶段有严格超时限制（KernelSU ~30-40s），必须快速执行完毕
 
 MODDIR="$(dirname "$0")"
+KERNEL_BIN="$MODDIR/maodie/kernel/Mihomo"
 PID_FILE="$MODDIR/maodie/run/kernel.pid"
 ADB_LOCK="$MODDIR/maodie/run/adblock.lock"
 MONITOR_LOCK="$MODDIR/maodie/run/monitor.lock"
@@ -33,17 +34,24 @@ script_alive() {
     [ -r "/proc/$check_pid/cmdline" ] && grep -aq "$script_name" "/proc/$check_pid/cmdline" 2>/dev/null
 }
 
+kernel_alive() {
+    check_pid="$1"
+    [ -n "$check_pid" ] || return 1
+    kill -0 "$check_pid" 2>/dev/null || return 1
+    [ -r "/proc/$check_pid/cmdline" ] && grep -aq "$KERNEL_BIN" "/proc/$check_pid/cmdline" 2>/dev/null
+}
+
 # 1. 通过 PID 文件停止上次残留的内核进程
 if [ -f "$PID_FILE" ]; then
     pid=$(cat "$PID_FILE" 2>/dev/null)
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    if kernel_alive "$pid"; then
         kill -9 "$pid" 2>/dev/null
     fi
     rm -f "$PID_FILE"
 fi
 
-# 2. 兜底：用 pkill 清理所有 Mihomo 进程（替代耗时的 /proc 遍历）
-pkill -9 -f "Mihomo" 2>/dev/null || true
+# 2. 兜底：仅清理本模块核心，避免误伤其它 Mihomo 实例
+pkill -9 -f "$KERNEL_BIN" 2>/dev/null || true
 
 # 3. 清理上次残留的监控看门狗进程及其 lock
 pkill -f "$MODDIR/maodie/scripts/monitor.sh" 2>/dev/null

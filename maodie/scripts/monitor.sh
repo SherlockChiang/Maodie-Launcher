@@ -8,6 +8,7 @@
 
 MOD_DIR="/data/adb/modules/Maodie-Launcher"
 CORE_SCRIPT="$MOD_DIR/maodie/scripts/core.sh"
+KERNEL_BIN="$MOD_DIR/maodie/kernel/Mihomo"
 RUN_DIR="$MOD_DIR/maodie/run"
 PID_FILE="$RUN_DIR/kernel.pid"
 DISABLE_FILE="$MOD_DIR/disable"
@@ -68,7 +69,7 @@ mihomo_alive() {
     [ -f "$PID_FILE" ] || return 1
     pid=$(cat "$PID_FILE" 2>/dev/null)
     [ -n "$pid" ] || return 1
-    [ -r "/proc/$pid/cmdline" ] && grep -aq "Mihomo" "/proc/$pid/cmdline" 2>/dev/null
+    [ -r "/proc/$pid/cmdline" ] && grep -aq "$KERNEL_BIN" "/proc/$pid/cmdline" 2>/dev/null
 }
 
 read_system_server_start_count() {
