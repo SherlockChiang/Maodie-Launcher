@@ -5,11 +5,18 @@
 MODDIR="$(dirname "$0")"
 SCRIPT_DIR="$MODDIR/maodie/scripts"
 LOG_FILE="$MODDIR/maodie/run/service.log"
+LOG_MAX_SIZE=262144
 KERNEL_BIN="$MODDIR/maodie/kernel/Mihomo"
 
 # 初始化运行环境
 mkdir -p "$MODDIR/maodie/run"
-echo "--- Service Started at $(date) ---" > "$LOG_FILE"
+chmod 700 "$MODDIR/maodie/run" 2>/dev/null
+
+if [ -f "$LOG_FILE" ] && [ "$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)" -gt "$LOG_MAX_SIZE" ]; then
+    mv -f "$LOG_FILE" "$LOG_FILE.old"
+fi
+echo "--- Service Started at $(date) ---" >> "$LOG_FILE"
+chmod 600 "$LOG_FILE" 2>/dev/null
 
 # 清理上次关机前残留的 PID 文件（重启后 PID 可能被其它进程复用，避免误判"已运行"）
 rm -f "$MODDIR/maodie/run/kernel.pid"

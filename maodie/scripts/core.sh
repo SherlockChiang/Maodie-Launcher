@@ -14,6 +14,7 @@ WAIT_MODE_FILE="$RUN_DIR/iptables_wait.mode"
 API_LEVEL=$(getprop ro.build.version.sdk)
 
 mkdir -p "$RUN_DIR"
+chmod 700 "$RUN_DIR" 2>/dev/null
 
 rotate_log() {
     if [ -f "$LOG_FILE" ]; then

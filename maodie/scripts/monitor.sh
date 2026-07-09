@@ -21,6 +21,7 @@ TUN_IFACE="utun"
 TUN_TABLE="2022"
 
 mkdir -p "$RUN_DIR"
+chmod 700 "$RUN_DIR" 2>/dev/null
 
 script_alive() {
     check_pid="$1"
@@ -62,6 +63,7 @@ log() {
         mv -f "$LOG" "$LOG.old"
     fi
     echo "$(date '+%m-%d %H:%M:%S'): $1" >> "$LOG"
+    chmod 600 "$LOG" 2>/dev/null
 }
 
 # Mihomo 是否存活（PID 文件 + cmdline 校验，防重启后 PID 被复用误判）

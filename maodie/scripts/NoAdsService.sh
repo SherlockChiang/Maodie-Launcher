@@ -9,6 +9,7 @@ LOG_FILE="$MOD_DIR/maodie/run/adblock.log"
 LOCK_DIR="$MOD_DIR/maodie/run/adblock.lock"
 
 mkdir -p "$MOD_DIR/maodie/run"
+chmod 700 "$MOD_DIR/maodie/run" 2>/dev/null
 
 service_alive() {
     check_pid="$1"
@@ -47,6 +48,7 @@ trap cleanup_lock EXIT
 trap 'exit 0' INT TERM
 
 echo "$(date): NoAdsService started (PID: $$)." > "$LOG_FILE"
+chmod 600 "$LOG_FILE" 2>/dev/null
 
 if [ ! -f "$ADBLOCK_LIST" ]; then
     echo "$(date): adblock.list not found, nothing to do." >> "$LOG_FILE"
@@ -108,6 +110,7 @@ while :; do
 
     [ "$blocked_count" -gt 0 ] && echo "$(date): Patrol done, $blocked_count path(s) blocked." >> "$LOG_FILE"
     [ "$skipped_count" -gt 0 ] && echo "$(date): Patrol skipped $skipped_count state file(s)." >> "$LOG_FILE"
+    chmod 600 "$LOG_FILE" 2>/dev/null
 
     # 巡检间隔：1 小时
     sleep 3600
