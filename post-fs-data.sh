@@ -68,9 +68,19 @@ fi
 
 # 5. iptables 清理放到后台执行，避免阻塞 post-fs-data 阶段
 {
-    iptables -w 1 -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null
-    iptables -w 1 -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null
-    iptables -w 1 -t mangle -D PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null
-    ip6tables -w 1 -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null
-    ip6tables -w 1 -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null
+    while iptables -w 1 -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null; do
+        iptables -w 1 -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null || break
+    done
+    while iptables -w 1 -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null; do
+        iptables -w 1 -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null || break
+    done
+    while iptables -w 1 -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null; do
+        iptables -w 1 -t mangle -D PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null || break
+    done
+    while ip6tables -w 1 -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null; do
+        ip6tables -w 1 -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null || break
+    done
+    while ip6tables -w 1 -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null; do
+        ip6tables -w 1 -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null || break
+    done
 } &

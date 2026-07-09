@@ -112,13 +112,23 @@ apply_iptables() {
 clear_iptables() {
     detect_iptables_wait
 
-    iptables $IPT_WAIT -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null
-    iptables $IPT_WAIT -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null
-    iptables $IPT_WAIT -t mangle -D PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null
+    while iptables $IPT_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null; do
+        iptables $IPT_WAIT -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null || break
+    done
+    while iptables $IPT_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null; do
+        iptables $IPT_WAIT -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null || break
+    done
+    while iptables $IPT_WAIT -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null; do
+        iptables $IPT_WAIT -t mangle -D PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null || break
+    done
 
     if [ -f /proc/net/if_inet6 ]; then
-        ip6tables $IPV6_WAIT -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null
-        ip6tables $IPV6_WAIT -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null
+        while ip6tables $IPV6_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null; do
+            ip6tables $IPV6_WAIT -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null || break
+        done
+        while ip6tables $IPV6_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null; do
+            ip6tables $IPV6_WAIT -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null || break
+        done
     fi
 
     echo "iptables rules cleared." >> "$LOG_FILE"
