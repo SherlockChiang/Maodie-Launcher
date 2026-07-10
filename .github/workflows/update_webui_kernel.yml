@@ -190,7 +190,12 @@ jobs:
           fi
 
           # --- 更新配置文件 ---
-          NEW_VERSION_CODE=$(date +'%Y%m%d')
+          NEW_VERSION_CODE=$(date +'%s')
+          OLD_VERSION_CODE=$(sed -n 's/^versionCode=//p' module.prop)
+          if [ -n "$OLD_VERSION_CODE" ] && [ "$NEW_VERSION_CODE" -le "$OLD_VERSION_CODE" ]; then
+            echo "❌ versionCode 未严格递增"
+            exit 1
+          fi
           UPDATE_URL="https://raw.githubusercontent.com/$REPOSITORY/main/update.json"
           CHANGELOG_URL="https://raw.githubusercontent.com/$REPOSITORY/main/changelog.md"
 
