@@ -583,7 +583,7 @@
 
         const updateProviderUrl = (text, provider, newUrl) => {
             const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
-            return regex.test(text) ? text.replace(regex, `$1${JSON.stringify(newUrl)}`) : text;
+            return regex.test(text) ? text.replace(regex, (_, prefix) => `${prefix}${JSON.stringify(newUrl)}`) : text;
         };
 
         const applyConfigText = (text) => {
@@ -652,12 +652,12 @@
                     const oldUrl = getProviderUrl(configText, provider);
                     if (oldUrl === url) continue;
                     configText = updateProviderUrl(configText, provider, url);
-                    await appendHistory(`更新 ${provider}: 成功`);
                     updatedCount++;
                 }
 
                 if (updatedCount > 0) {
                     await saveConfigText(configText);
+                    await appendHistory(`成功更新 ${updatedCount} 个 provider`);
                     await appendHistory(`执行内核重启`);
                     await restartKernel();
                     snackbar("保存成功，内核已重启");
