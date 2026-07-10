@@ -16,10 +16,16 @@ umask 077
 
 if [ "$1" = "restore" ]; then
     if [ -f "$STATE_FILE" ]; then
+        failed_state="$STATE_FILE.failed.$$"
         while IFS= read -r changed || [ -n "$changed" ]; do
-            [ -n "$changed" ] && chattr -i "$changed" 2>/dev/null
+            [ -n "$changed" ] || continue
+            chattr -i "$changed" 2>/dev/null || printf '%s\n' "$changed" >> "$failed_state"
         done < "$STATE_FILE"
-        rm -f "$STATE_FILE"
+        if [ -s "$failed_state" ]; then
+            mv -f "$failed_state" "$STATE_FILE"
+            exit 1
+        fi
+        rm -f "$failed_state" "$STATE_FILE"
     fi
     exit 0
 fi
@@ -101,10 +107,16 @@ is_safe_target() {
 
 restore_changes() {
     [ -f "$STATE_FILE" ] || return
+    failed_state="$STATE_FILE.failed.$$"
     while IFS= read -r changed || [ -n "$changed" ]; do
-        [ -n "$changed" ] && chattr -i "$changed" 2>/dev/null
+        [ -n "$changed" ] || continue
+        chattr -i "$changed" 2>/dev/null || printf '%s\n' "$changed" >> "$failed_state"
     done < "$STATE_FILE"
-    rm -f "$STATE_FILE"
+    if [ -s "$failed_state" ]; then
+        mv -f "$failed_state" "$STATE_FILE"
+        return 1
+    fi
+    rm -f "$failed_state" "$STATE_FILE"
 }
 
 record_change() {
