@@ -62,6 +62,7 @@ echo "System ready. Starting core and monitor..." >> "$LOG_FILE"
 chmod +x "$SCRIPT_DIR/core.sh" 2>/dev/null
 chmod +x "$SCRIPT_DIR/monitor.sh" 2>/dev/null
 chmod +x "$SCRIPT_DIR/NoAdsService.sh" 2>/dev/null
+chmod +x "$SCRIPT_DIR/configctl.sh" 2>/dev/null
 
 # 3.5 SELinux 兼容处理
 if command -v getenforce >/dev/null 2>&1; then
@@ -70,7 +71,7 @@ if command -v getenforce >/dev/null 2>&1; then
     if [ "$SELINUX_STATUS" = "Enforcing" ]; then
         # 为 Mihomo 二进制设置可执行上下文
         chcon u:object_r:system_file:s0 "$KERNEL_BIN" 2>/dev/null
-        for script in "$SCRIPT_DIR/core.sh" "$SCRIPT_DIR/monitor.sh" "$SCRIPT_DIR/NoAdsService.sh"; do
+        for script in "$SCRIPT_DIR/core.sh" "$SCRIPT_DIR/monitor.sh" "$SCRIPT_DIR/NoAdsService.sh" "$SCRIPT_DIR/configctl.sh"; do
             chcon u:object_r:system_file:s0 "$script" 2>/dev/null
         done
         echo "SELinux contexts applied." >> "$LOG_FILE"

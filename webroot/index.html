@@ -315,7 +315,17 @@
         const CONFIG_FILE = '/data/adb/modules/Maodie-Launcher/maodie/config/config.yaml';
         const LOG_FILE = '/data/adb/modules/Maodie-Launcher/webroot/history.log';
         const CORE_SCRIPT = '/data/adb/modules/Maodie-Launcher/maodie/scripts/core.sh';
-        const restartKernel = () => exec(`sh ${CORE_SCRIPT} restart`);
+        const CONFIG_SCRIPT = '/data/adb/modules/Maodie-Launcher/maodie/scripts/configctl.sh';
+
+        const execChecked = async (command, options = {}) => {
+            const result = await exec(command, options);
+            if (result.errno !== 0) {
+                throw new Error(result.stderr.trim() || `命令执行失败 (${result.errno})`);
+            }
+            return result;
+        };
+
+        const restartKernel = () => execChecked(`sh ${CORE_SCRIPT} restart`);
 
         const $ = (id) => document.getElementById(id);
         const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
@@ -442,7 +452,7 @@
 
         const saveConfigText = async (text) => {
             const b64Str = utf8_to_b64(text);
-            await exec(`echo -n "${b64Str}" | base64 -d > ${CONFIG_FILE}`);
+            await execChecked(`sh ${CONFIG_SCRIPT} apply-base64 "${b64Str}"`);
         };
 
         const applyDnsState = (configText) => {
@@ -547,7 +557,7 @@
 
         const updateProviderUrl = (text, provider, newUrl) => {
             const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
-            return regex.test(text) ? text.replace(regex, `$1"${newUrl}"`) : text;
+            return regex.test(text) ? text.replace(regex, `$1${JSON.stringify(newUrl)}`) : text;
         };
 
         const applyConfigText = (text) => {
