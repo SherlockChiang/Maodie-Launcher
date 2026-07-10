@@ -227,6 +227,7 @@ start() {
     if ! kill -0 $PID 2>/dev/null; then
         echo "Error: Kernel exited immediately. Check log for details." | tee -a "$LOG_FILE"
         rm -f "$PID_FILE"
+        restore_tuning
         return 1
     fi
 
