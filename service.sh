@@ -89,6 +89,7 @@ if [ -f "$MODDIR/maodie/config/adblock.enabled" ]; then
     nohup sh "$SCRIPT_DIR/NoAdsService.sh" >> "$LOG_FILE" 2>&1 &
 else
     echo "AdBlock disabled (opt-in marker not found)." >> "$LOG_FILE"
+    sh "$SCRIPT_DIR/NoAdsService.sh" restore >> "$LOG_FILE" 2>&1
 fi
 
 echo "--- Service script finished at $(date) ---" >> "$LOG_FILE"

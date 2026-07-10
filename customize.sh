@@ -10,6 +10,9 @@ NEW_PROVIDERS_DIR="$MODPATH/maodie/config/proxy_providers"
 
 OLD_CACHE_DB="$EXISTING_DIR/maodie/config/cache.db"
 NEW_CACHE_DB="$MODPATH/maodie/config/cache.db"
+OLD_ADBLOCK_STATE="$EXISTING_DIR/maodie/config/adblock.state"
+NEW_ADBLOCK_STATE="$MODPATH/maodie/config/adblock.state"
+OLD_ADBLOCK_ENABLE="$EXISTING_DIR/maodie/config/adblock.enabled"
 
 NEW_CONFIG="$MODPATH/maodie/config/config.yaml"
 TEMP_PROVIDERS="$MODPATH/user_providers.yaml"
@@ -105,6 +108,22 @@ find "$MODPATH/maodie/config/webui" -type f -exec chmod 644 {} \;
 ui_print "- 开始配置迁移..."
 
 if [ -d "$EXISTING_DIR" ]; then
+
+  if [ -f "$OLD_ADBLOCK_STATE" ]; then
+    cp -f "$OLD_ADBLOCK_STATE" "$NEW_ADBLOCK_STATE" || abort "去广告恢复账本迁移失败"
+    chmod 600 "$NEW_ADBLOCK_STATE"
+  else
+    # 旧版没有变更账本；升级到默认关闭策略时解除旧清单可能留下的 immutable。
+    OLD_ADBLOCK_LIST="$EXISTING_DIR/maodie/config/adblock.list"
+    if [ -f "$OLD_ADBLOCK_LIST" ]; then
+      while IFS= read -r target || [ -n "$target" ]; do
+        case "$target" in ''|\#*) continue ;; esac
+        chattr -i "$target" 2>/dev/null
+      done < "$OLD_ADBLOCK_LIST"
+    fi
+  fi
+
+  [ -f "$OLD_ADBLOCK_ENABLE" ] && cp -f "$OLD_ADBLOCK_ENABLE" "$MODPATH/maodie/config/adblock.enabled"
 
   if [ -d "$OLD_PROVIDERS_DIR" ]; then
     ui_print "  发现旧版 proxy_providers 文件夹，正在保留..."

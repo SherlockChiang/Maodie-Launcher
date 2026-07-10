@@ -14,6 +14,16 @@ mkdir -p "$MOD_DIR/maodie/run"
 chmod 700 "$MOD_DIR/maodie/run" 2>/dev/null
 umask 077
 
+if [ "$1" = "restore" ]; then
+    if [ -f "$STATE_FILE" ]; then
+        while IFS= read -r changed || [ -n "$changed" ]; do
+            [ -n "$changed" ] && chattr -i "$changed" 2>/dev/null
+        done < "$STATE_FILE"
+        rm -f "$STATE_FILE"
+    fi
+    exit 0
+fi
+
 [ -f "$ENABLE_FILE" ] || exit 0
 
 service_alive() {
