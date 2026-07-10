@@ -68,8 +68,8 @@ detect_iptables_wait() {
                 return
                 ;;
             wait)
-                IPT_WAIT="-w 2"
-                IPV6_WAIT="-w 2"
+                IPT_WAIT=""
+                IPV6_WAIT=""
                 return
                 ;;
             none)
@@ -86,9 +86,13 @@ detect_iptables_wait() {
             IPT_WAIT="-w 2"
             IPV6_WAIT="-w 2"
             wait_mode="interval"
-        else
+        elif iptables -w 2 -L >/dev/null 2>&1; then
             IPT_WAIT="-w 2"
             IPV6_WAIT="-w 2"
+            wait_mode="interval"
+        else
+            IPT_WAIT=""
+            IPV6_WAIT=""
             wait_mode="wait"
         fi
     else
@@ -237,7 +241,14 @@ start() {
 
     if ! apply_iptables; then
         kill -15 "$PID" 2>/dev/null
+        wait=0
+        while [ "$wait" -lt 3 ] && kernel_pid_alive "$PID"; do
+            sleep 1
+            wait=$((wait + 1))
+        done
+        kernel_pid_alive "$PID" && kill -9 "$PID" 2>/dev/null
         rm -f "$PID_FILE"
+        clear_iptables
         restore_tuning
         return 1
     fi
