@@ -68,8 +68,8 @@ detect_iptables_wait() {
                 return
                 ;;
             wait)
-                IPT_WAIT="-w"
-                IPV6_WAIT="-w"
+                IPT_WAIT="-w 2"
+                IPV6_WAIT="-w 2"
                 return
                 ;;
             none)
@@ -87,8 +87,8 @@ detect_iptables_wait() {
             IPV6_WAIT="-w 2"
             wait_mode="interval"
         else
-            IPT_WAIT="-w"
-            IPV6_WAIT="-w"
+            IPT_WAIT="-w 2"
+            IPV6_WAIT="-w 2"
             wait_mode="wait"
         fi
     else
@@ -141,17 +141,22 @@ apply_tuning() {
 
 apply_iptables() {
     detect_iptables_wait
+    local failed=0
 
-    iptables $IPT_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null || iptables $IPT_WAIT -I FORWARD -i "utun+" -j ACCEPT
-    iptables $IPT_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null || iptables $IPT_WAIT -I FORWARD -o "utun+" -j ACCEPT
+    iptables $IPT_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null || iptables $IPT_WAIT -I FORWARD -i "utun+" -j ACCEPT || failed=1
+    iptables $IPT_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null || iptables $IPT_WAIT -I FORWARD -o "utun+" -j ACCEPT || failed=1
 
-    iptables $IPT_WAIT -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null || iptables $IPT_WAIT -t mangle -I PREROUTING -m mark --mark 2022 -j RETURN
+    iptables $IPT_WAIT -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null || iptables $IPT_WAIT -t mangle -I PREROUTING -m mark --mark 2022 -j RETURN || failed=1
 
     if [ -f /proc/net/if_inet6 ]; then
         ip6tables $IPV6_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null || ip6tables $IPV6_WAIT -I FORWARD -i "utun+" -j ACCEPT
         ip6tables $IPV6_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null || ip6tables $IPV6_WAIT -I FORWARD -o "utun+" -j ACCEPT
     fi
 
+    if [ "$failed" -ne 0 ]; then
+        echo "Error: Failed to apply required IPv4 iptables rules." >> "$LOG_FILE"
+        return 1
+    fi
     echo "iptables rules applied." >> "$LOG_FILE"
 }
 
@@ -229,7 +234,12 @@ start() {
         echo "$OOM_SCORE_ADJ" > /proc/$PID/oom_score_adj 2>/dev/null
     fi
 
-    apply_iptables
+    if ! apply_iptables; then
+        kill -15 "$PID" 2>/dev/null
+        rm -f "$PID_FILE"
+        restore_tuning
+        return 1
+    fi
 
     echo "Core started with PID: $PID" >> "$LOG_FILE"
 }
