@@ -75,8 +75,10 @@ if command -v getenforce >/dev/null 2>&1; then
     fi
 fi
 
-# 4. 启动核心（后台执行，避免阻塞 service 阶段）
-nohup sh "$SCRIPT_DIR/core.sh" start >> "$LOG_FILE" 2>&1 &
+# 4. 先确认核心启动完成，避免 monitor 与启动流程竞争 PID 文件
+if ! sh "$SCRIPT_DIR/core.sh" start >> "$LOG_FILE" 2>&1; then
+    echo "FATAL: Core failed to start; monitor will retry with backoff." >> "$LOG_FILE"
+fi
 
 # 5. 启动监控和去广告服务（后台）
 nohup sh "$SCRIPT_DIR/monitor.sh" >> "$LOG_FILE" 2>&1 &

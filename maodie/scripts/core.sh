@@ -10,11 +10,38 @@ PID_FILE="$RUN_DIR/kernel.pid"
 LOG_FILE="$RUN_DIR/kernel.log"
 LOG_MAX_SIZE=524288  # 512KB
 WAIT_MODE_FILE="$RUN_DIR/iptables_wait.mode"
+LOCK_DIR="$RUN_DIR/core.lock"
 
 API_LEVEL=$(getprop ro.build.version.sdk)
 
 mkdir -p "$RUN_DIR"
 chmod 700 "$RUN_DIR" 2>/dev/null
+
+kernel_pid_alive() {
+    local pid="$1"
+    [ -n "$pid" ] || return 1
+    kill -0 "$pid" 2>/dev/null || return 1
+    [ -r "/proc/$pid/cmdline" ] && grep -aq "$KERNEL_BIN" "/proc/$pid/cmdline" 2>/dev/null
+}
+
+acquire_lock() {
+    local attempts=0 old_pid
+    while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+        old_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+            attempts=$((attempts + 1))
+            [ "$attempts" -ge 15 ] && return 1
+            sleep 1
+        else
+            rm -rf "$LOCK_DIR"
+        fi
+    done
+    echo $$ > "$LOCK_DIR/pid"
+}
+
+release_lock() {
+    [ "$(cat "$LOCK_DIR/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK_DIR"
+}
 
 rotate_log() {
     if [ -f "$LOG_FILE" ]; then
@@ -138,12 +165,7 @@ clear_iptables() {
 is_running() {
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE" 2>/dev/null)
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            # 校验是 Mihomo 本身，避免重启后 PID 被其它进程复用导致误判
-            if [ -r "/proc/$pid/cmdline" ] && grep -aq "$KERNEL_BIN" "/proc/$pid/cmdline" 2>/dev/null; then
-                return 0
-            fi
-        fi
+        kernel_pid_alive "$pid" && return 0
         # PID 文件存在但进程已死或 PID 被复用，清理残留
         rm -f "$PID_FILE"
     fi
@@ -199,7 +221,7 @@ start() {
 stop() {
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE" 2>/dev/null)
-        if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        if kernel_pid_alive "$PID"; then
             kill -15 $PID 2>/dev/null
 
             local wait=0
@@ -208,7 +230,7 @@ stop() {
                 wait=$((wait + 1))
             done
 
-            if kill -0 $PID 2>/dev/null; then
+            if kernel_pid_alive "$PID"; then
                 kill -9 $PID 2>/dev/null
                 echo "Warning: Core didn't stop gracefully, force killed." >> "$LOG_FILE"
             fi
@@ -246,10 +268,20 @@ reapply() {
 }
 
 case "$1" in
+    start|stop|restart|reapply)
+        if ! acquire_lock; then
+            echo "Error: Another core operation is still running." >&2
+            exit 1
+        fi
+        trap release_lock EXIT
+        ;;
+esac
+
+case "$1" in
     start)   start ;;
     stop)    stop ;;
     restart) stop; sleep 1; start ;;
     reapply) reapply ;;
     status)  status ;;
-    *)       echo "Usage: $0 {start|stop|restart|reapply|status}" ;;
+    *)       echo "Usage: $0 {start|stop|restart|reapply|status}"; exit 1 ;;
 esac
