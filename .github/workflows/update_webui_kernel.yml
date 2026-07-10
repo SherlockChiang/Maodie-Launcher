@@ -26,6 +26,7 @@ env:
 
 jobs:
   process-and-release:
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,11 +63,13 @@ jobs:
           curl -fL --retry 3 --retry-delay 5 -o webui.tgz "$DOWNLOAD_URL" || { echo "❌ 下载失败"; exit 1; }
           echo "$EXPECTED_SHA  webui.tgz" | sha256sum --check --strict
 
-          if tar -tzf webui.tgz | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+          tar -tzf webui.tgz > webui-members.txt
+          tar -tvzf webui.tgz > webui-members-long.txt
+          if grep -E '(^/|(^|/)\.\.(/|$))' webui-members.txt >/dev/null; then
             echo "❌ WebUI 压缩包包含越界路径"
             exit 1
           fi
-          if tar -tvzf webui.tgz | grep -Eq '^[lh]'; then
+          if grep -E '^[lh]' webui-members-long.txt >/dev/null; then
             echo "❌ WebUI 压缩包包含链接"
             exit 1
           fi
@@ -88,7 +91,8 @@ jobs:
           echo "🔍 检查 Mihomo Kernel..."
           LATEST_DATA=$(curl -sf "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest") || { echo "❌ API 请求失败"; exit 1; }
           VERSION=$(echo "$LATEST_DATA" | jq -r '.tag_name')
-          ASSET=$(echo "$LATEST_DATA" | jq -ec '[.assets[] | select(.name | test("^mihomo-android-arm64-v8-v[0-9]+([.][0-9]+){1,3}\\.gz$"))][0]')
+          ASSET_NAME="mihomo-android-arm64-v8-${VERSION}.gz"
+          ASSET=$(echo "$LATEST_DATA" | jq -ec --arg name "$ASSET_NAME" '[.assets[] | select(.name == $name)][0]')
           DOWNLOAD_URL=$(echo "$ASSET" | jq -er '.browser_download_url')
           EXPECTED_SHA=$(echo "$ASSET" | jq -er '.digest | select(startswith("sha256:")) | sub("^sha256:"; "")')
           if ! printf '%s' "$VERSION" | grep -Eq '^v?[0-9]+([.][0-9]+){1,3}([-+][A-Za-z0-9._-]+)?$'; then
@@ -115,6 +119,8 @@ jobs:
           WEBUI_VER: ${{ steps.webui.outputs.ver }}
           KERNEL_VER: ${{ steps.kernel.outputs.ver }}
           REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
 
@@ -122,7 +128,7 @@ jobs:
           : "${MODE:=check_update}"
 
           SHORT_HASH=$(git rev-parse --short HEAD)
-          TAG_NAME="v$(date +'%Y%m%d')-${SHORT_HASH}"
+          TAG_NAME="v$(date +'%Y%m%d')-${RUN_ID}-${RUN_ATTEMPT}"
 
           # --- 提取 Git 变更日志 ---
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
@@ -254,8 +260,9 @@ jobs:
             exit 1
           fi
           unzip -t "$FINAL_ZIP" >/dev/null
+          unzip -Z1 "$FINAL_ZIP" > zip-members.txt
           for required in module.prop customize.sh service.sh maodie/kernel/Mihomo maodie/config/config.yaml; do
-            unzip -Z1 "$FINAL_ZIP" | grep -Fxq "$required" || { echo "❌ ZIP 缺少 $required"; exit 1; }
+            grep -Fx "$required" zip-members.txt >/dev/null || { echo "❌ ZIP 缺少 $required"; exit 1; }
           done
           echo "✅ 打包完成: $(ls -lh "$FINAL_ZIP" | awk '{print $5, $NF}')"
           echo "zip_name=$FINAL_ZIP" >> $GITHUB_ENV
@@ -288,6 +295,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          gh release edit "$RELEASE_TAG" --draft=false
           git push origin "$RELEASE_COMMIT:refs/heads/$TARGET_BRANCH"
+          if ! gh release edit "$RELEASE_TAG" --draft=false; then
+            git revert --no-edit "$RELEASE_COMMIT"
+            git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+            exit 1
+          fi
           git push origin --delete "release-staging/$RELEASE_TAG"
