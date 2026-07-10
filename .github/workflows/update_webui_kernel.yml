@@ -238,7 +238,11 @@ jobs:
           mkdir -p maodie/run
           FINAL_ZIP="Maodie-Launcher-${{ steps.commit.outputs.release_tag }}.zip"
 
-          zip -r "$FINAL_ZIP" META-INF maodie webroot customize.sh module.prop service.sh post-fs-data.sh uninstall.sh action.sh
+          zip -r "$FINAL_ZIP" META-INF maodie webroot customize.sh module.prop service.sh post-fs-data.sh uninstall.sh action.sh \
+            -x "maodie/run/*" "maodie/config/proxy_providers/*" \
+            "maodie/config/cache.db" "maodie/config/adblock.enabled" \
+            "maodie/config/adblock.state" "maodie/config/config.yaml.last-good"
+          zip "$FINAL_ZIP" maodie/run/.gitkeep
 
           if [ ! -f "$FINAL_ZIP" ]; then
             echo "❌ 错误：文件未生成！"
