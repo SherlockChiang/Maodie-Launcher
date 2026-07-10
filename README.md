@@ -21,7 +21,7 @@
 
 上游关系：本 README 主要介绍 耄耋启动器 的独有特性，关于 Mihomo 的通用配置特性，请查看虚空终端Wiki。
 
-兼容性：本模块基于最新的 Android 特性开发（支持 KernelSU/APatch），如果您的系统低于 Android 10，建议升级以获得最佳体验。
+兼容性：本模块仅支持 ARM64 设备，基于 Android 10 及以上版本开发，并支持 KernelSU/APatch/Magisk；其他架构会在安装时中止。
 
 ## ✨ 独有特性
 ⚡ 现代网络栈： 抛弃低效的 gVisor，默认启用 system 协议栈配合 auto-route，并自动注入 sysctl 内核参数尽可能跑满带宽。
@@ -53,7 +53,7 @@ Secret：安装或点击模块 action 时会自动生成并写入 `maodie/config
 
 去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于 beta 阶段，欢迎测试。由于上游变动较大，请谨慎测试；目前本模块已经缝合了去广告模块的部分功能。
 
-去广告功能会按 `maodie/config/adblock.list` 清空指定广告路径并设置 immutable 标记，卸载时会尝试解除。请不要把重要 App 数据目录加入该清单。
+物理去广告默认关闭。确认清单内容及不可逆的数据删除风险后，可创建空文件 `maodie/config/adblock.enabled` 并重启模块以启用；删除该文件后服务会停止巡检并按实际变更账本解除 immutable。功能会按 `maodie/config/adblock.list` 清空指定广告路径，请不要把重要 App 数据目录加入该清单。
 
 ## 🤝 鸣谢
 
