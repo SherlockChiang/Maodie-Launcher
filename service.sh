@@ -83,8 +83,12 @@ if ! sh "$SCRIPT_DIR/core.sh" start >> "$LOG_FILE" 2>&1; then
     echo "FATAL: Core failed to start; monitor will retry with backoff." >> "$LOG_FILE"
 fi
 
-# 5. 启动监控和去广告服务（后台）
+# 5. 启动监控；去广告属于破坏性功能，仅在用户显式启用后启动
 nohup sh "$SCRIPT_DIR/monitor.sh" >> "$LOG_FILE" 2>&1 &
-nohup sh "$SCRIPT_DIR/NoAdsService.sh" >> "$LOG_FILE" 2>&1 &
+if [ -f "$MODDIR/maodie/config/adblock.enabled" ]; then
+    nohup sh "$SCRIPT_DIR/NoAdsService.sh" >> "$LOG_FILE" 2>&1 &
+else
+    echo "AdBlock disabled (opt-in marker not found)." >> "$LOG_FILE"
+fi
 
 echo "--- Service script finished at $(date) ---" >> "$LOG_FILE"

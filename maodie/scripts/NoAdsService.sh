@@ -7,9 +7,14 @@ MOD_DIR="/data/adb/modules/Maodie-Launcher"
 ADBLOCK_LIST="$MOD_DIR/maodie/config/adblock.list"
 LOG_FILE="$MOD_DIR/maodie/run/adblock.log"
 LOCK_DIR="$MOD_DIR/maodie/run/adblock.lock"
+STATE_FILE="$MOD_DIR/maodie/config/adblock.state"
+ENABLE_FILE="$MOD_DIR/maodie/config/adblock.enabled"
 
 mkdir -p "$MOD_DIR/maodie/run"
 chmod 700 "$MOD_DIR/maodie/run" 2>/dev/null
+umask 077
+
+[ -f "$ENABLE_FILE" ] || exit 0
 
 service_alive() {
     check_pid="$1"
@@ -70,10 +75,42 @@ is_state_file() {
     esac
 }
 
+is_safe_target() {
+    target="$1"
+    case "$target" in
+        *'/../'*|*/..|*/./*|*/.|*[[:space:]]*) return 1 ;;
+        /data/data/*/*|/data/media/0/Android/data/*/*) ;;
+        *) return 1 ;;
+    esac
+    [ ! -L "$target" ] || return 1
+    if command -v readlink >/dev/null 2>&1; then
+        resolved=$(readlink -f "$target" 2>/dev/null) || return 1
+        [ "$resolved" = "$target" ] || return 1
+    fi
+}
+
+restore_changes() {
+    [ -f "$STATE_FILE" ] || return
+    while IFS= read -r changed || [ -n "$changed" ]; do
+        [ -n "$changed" ] && chattr -i "$changed" 2>/dev/null
+    done < "$STATE_FILE"
+    rm -f "$STATE_FILE"
+}
+
+record_change() {
+    grep -Fxq "$1" "$STATE_FILE" 2>/dev/null || printf '%s\n' "$1" >> "$STATE_FILE"
+    chmod 600 "$STATE_FILE" 2>/dev/null
+}
+
 # 广告屏蔽核心：清空目标并加 immutable，使 App 无法再写入
 block_ad() {
     target="$1"
     [ ! -e "$target" ] && return
+    if ! is_safe_target "$target"; then
+        echo "$(date): Unsafe target skipped: $target" >> "$LOG_FILE"
+        skipped_count=$((skipped_count + 1))
+        return
+    fi
     if [ -f "$target" ] && is_state_file "$target"; then
         if is_immutable "$target"; then
             chattr -i "$target" 2>/dev/null
@@ -89,6 +126,7 @@ block_ad() {
         : > "$target" 2>/dev/null
     fi
     if chattr +i "$target" 2>/dev/null; then
+        record_change "$target"
         blocked_count=$((blocked_count + 1))
     fi
 }
@@ -97,6 +135,10 @@ block_ad() {
 sleep 30
 
 while :; do
+    if [ ! -f "$ENABLE_FILE" ]; then
+        restore_changes
+        exit 0
+    fi
     blocked_count=0
     skipped_count=0
 

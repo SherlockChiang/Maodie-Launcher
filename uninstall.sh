@@ -17,16 +17,13 @@ fi
 pkill -f "$MOD_DIR/maodie/scripts/monitor.sh" 2>/dev/null
 pkill -f "NoAdsService.sh" 2>/dev/null
 
-# 3. 恢复去广告服务设置过的 immutable 标记，避免卸载后影响 App 写入
-#    与 NoAdsService 共用同一份清单 adblock.list
-ADBLOCK_LIST="$MOD_DIR/maodie/config/adblock.list"
-if [ -f "$ADBLOCK_LIST" ]; then
+# 3. 仅恢复本模块实际修改过的路径，不依赖当前版本清单。
+ADBLOCK_STATE="$MOD_DIR/maodie/config/adblock.state"
+if [ -f "$ADBLOCK_STATE" ]; then
     while IFS= read -r target || [ -n "$target" ]; do
-        case "$target" in
-            ''|\#*) continue ;;
-        esac
+        [ -n "$target" ] || continue
         chattr -i "$target" 2>/dev/null
-    done < "$ADBLOCK_LIST"
+    done < "$ADBLOCK_STATE"
 fi
 
 # 4. 移除模块目录

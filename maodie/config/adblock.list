@@ -1,7 +1,7 @@
 # Maodie Launcher - 物理级去广告路径清单（单一数据源）
-# NoAdsService.sh 与 uninstall.sh 共用本文件。
+# 功能默认关闭；创建同目录 adblock.enabled 空文件后，下次启动模块时才会启用。
 # 规则：每行一个绝对路径；空行与以 # 开头的行被忽略。
-# 目录会被清空并加 immutable(i)，文件会被清零并加 immutable，卸载时自动解除。
+# 目录会被清空并加 immutable(i)，文件会被清零并加 immutable，卸载时按实际变更账本解除。
 # 为避免 App 状态损坏，NoAdsService.sh 会跳过 .db/.sqlite/.xml 状态文件，并解除旧版已加的 immutable。
 
 /data/data/com.sankuai.meituan.takeoutnew/files/cips/common/waimai/assets/ad
