@@ -49,18 +49,6 @@ set_config_secret() {
     fi
 }
 
-url_encode() {
-    printf '%s' "$1" | sed \
-        -e 's/%/%25/g' \
-        -e 's/ /%20/g' \
-        -e 's/#/%23/g' \
-        -e 's/&/%26/g' \
-        -e 's/+/%2B/g' \
-        -e 's/?/%3F/g' \
-        -e 's/=/%3D/g' \
-        -e 's|/|%2F|g'
-}
-
 secret=$(get_config_secret "$CONFIG_FILE")
 secret_changed=0
 if [ -z "$secret" ]; then
@@ -77,8 +65,8 @@ if [ -x "$CORE_SCRIPT" ]; then
     fi
 fi
 
-secret_query=$(url_encode "$secret")
-URL="$CONTROLLER_URL/ui/#/setup?hostname=127.0.0.1&port=9090&http=1&secret=${secret_query}"
+# 不把 API secret 放进 ACTION_VIEW URI，避免浏览器/URL handler 获取管理凭据。
+URL="$CONTROLLER_URL/ui/"
 
 am start -a android.intent.action.VIEW -d "$URL" --user 0 >/dev/null 2>&1 \
     || am start -a android.intent.action.VIEW -d "$URL" >/dev/null 2>&1

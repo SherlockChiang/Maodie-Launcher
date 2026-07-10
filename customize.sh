@@ -1,5 +1,6 @@
 #!/system/bin/sh
 SKIPUNZIP=1
+umask 077
 
 EXISTING_DIR="/data/adb/modules/Maodie-Launcher"
 OLD_CONFIG="$EXISTING_DIR/maodie/config/config.yaml"
@@ -87,7 +88,11 @@ chmod +x $MODPATH/post-fs-data.sh
 chmod +x $MODPATH/uninstall.sh
 chmod -R +x $MODPATH/maodie/scripts/
 chmod 755 $MODPATH/maodie/kernel/Mihomo
-chmod -R 755 "$MODPATH/maodie/config/webui"
+chmod 700 "$MODPATH/maodie/config"
+chmod 600 "$MODPATH/maodie/config/config.yaml"
+chmod -R 600 "$MODPATH/maodie/config/proxy_providers" 2>/dev/null
+find "$MODPATH/maodie/config/webui" -type d -exec chmod 755 {} \;
+find "$MODPATH/maodie/config/webui" -type f -exec chmod 644 {} \;
 
 ui_print "- 开始配置迁移..."
 
@@ -97,7 +102,7 @@ if [ -d "$EXISTING_DIR" ]; then
     ui_print "  发现旧版 proxy_providers 文件夹，正在保留..."
     mkdir -p "$NEW_PROVIDERS_DIR"
     cp -rf "$OLD_PROVIDERS_DIR/." "$NEW_PROVIDERS_DIR/" 2>/dev/null || true
-    chmod -R 755 "$NEW_PROVIDERS_DIR"
+    chmod -R 600 "$NEW_PROVIDERS_DIR"
     ui_print "  ✅ proxy_providers 文件夹迁移完成"
   else
     ui_print "  未发现旧版 proxy_providers 文件夹，跳过..."
@@ -106,7 +111,7 @@ if [ -d "$EXISTING_DIR" ]; then
   if [ -f "$OLD_CACHE_DB" ]; then
     ui_print "  发现旧版 cache.db，正在保留..."
     cp -f "$OLD_CACHE_DB" "$NEW_CACHE_DB" 2>/dev/null || true
-    chmod 644 "$NEW_CACHE_DB"
+    chmod 600 "$NEW_CACHE_DB"
     ui_print "  ✅ cache.db 迁移完成"
   else
     ui_print "  未发现旧版 cache.db，跳过..."

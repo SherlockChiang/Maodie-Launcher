@@ -42,7 +42,7 @@ WebUI 访问：
 
 默认地址：http://127.0.0.1:9090/ui
 
-Secret：安装或点击模块 action 时会自动生成并写入 `maodie/config/config.yaml`。管理器中的 action 按钮会带上 secret 打开 WebUI；不要分享带 secret 的 WebUI 链接。
+Secret：安装或点击模块 action 时会自动生成并写入 `maodie/config/config.yaml`。为避免凭据被浏览器或其他 URL 处理器读取，action 只打开 WebUI，不再把 secret 放入链接；首次连接时请自行输入配置文件中的 secret，且不要分享该值。
 
 ## 🚦 特别需知
 由于上游issue：https://github.com/MetaCubeX/mihomo/issues/1362
