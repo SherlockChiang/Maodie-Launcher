@@ -1,7 +1,39 @@
-🎨 **面板更新**
-- 版本: v1.267.0
+📦 **手动发布**
+- 版本: v20260710-29089209200-1
+- 基础 Commit: 92dfe91
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260710-ec4a7d5
+- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (92dfe91)
+- fix: validate bash build contents (df2b806)
+- fix: make release publication recoverable (f891e5e)
+- fix: scope uninstall process cleanup (1101a7b)
+- fix: safely replace provider urls (460c586)
+- fix: retain failed adblock restores (b9ee81c)
+- fix: recover stale configuration locks (a035d99)
+- fix: clean up failed network startup (18c1e9b)
+- fix: align release tags with artifacts (df5059f)
+- docs: document arm64 and adblock opt-in (fbcdbf6)
+- fix: restore tuning after startup failure (b081e35)
+- fix: restore legacy adblock changes (1ceb3cb)
+- fix: exclude runtime state from releases (18b5922)
+- fix: exclude runtime data from builds (32abfcf)
+- fix: report action startup failures (2721547)
+- fix: bound iptables lock waits (5ca7df6)
+- fix: reduce mihomo oom protection (5f7e046)
+- fix: generate monotonic release codes (ed8a607)
+- fix: validate installation migrations (ffc603d)
+- fix: keep api credentials out of browser urls (fc3d270)
+- fix: make destructive adblock opt-in (eaba252)
+- fix: surface webui operation failures (38da522)
+- fix: apply configuration atomically (7edf1ba)
+- fix: restore system tuning on stop (991e744)
+- fix: back off watchdog recovery (0b239d8)
+- fix: serialize core lifecycle operations (328ba3c)
+- fix: publish artifacts before update metadata (2c0fa0a)
+- fix: verify upstream release assets (a8cdb6e)
+- chore: tighten runtime log permissions (2406925)
+- docs: clarify setup and adblock behavior (1b45578)
+- chore: remove ASN handling (a5445ee)
+- fix: clear duplicate iptables rules (7ada9e4)
+- fix: limit mihomo process cleanup (1c9e97c)
+- fix: avoid false IPv6 tun restarts (7add377)
