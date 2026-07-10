@@ -110,6 +110,15 @@ rm -f "$ZIP_PATH"
 )
 
 if [ -f "$ZIP_PATH" ] && unzip -t "$ZIP_PATH" >/dev/null; then
+    unzip -Z1 "$ZIP_PATH" > "$ZIP_PATH.entries"
+    for required in module.prop customize.sh service.sh maodie/kernel/Mihomo maodie/config/config.yaml; do
+        if ! grep -Fx "$required" "$ZIP_PATH.entries" >/dev/null; then
+            rm -f "$ZIP_PATH.entries" "$ZIP_PATH"
+            err "ZIP 缺少必要文件: $required"
+            exit 1
+        fi
+    done
+    rm -f "$ZIP_PATH.entries"
     SIZE=$(du -h "$ZIP_PATH" | cut -f1)
     echo ""
     echo -e "${GREEN}========================================${NC}"
