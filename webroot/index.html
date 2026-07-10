@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maodie 管理面板</title>
     <style>
         :root {
@@ -166,6 +166,11 @@
             opacity: 0.62;
         }
 
+        button:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+        }
+
         button.loading::after {
             content: "";
             width: 14px;
@@ -234,11 +239,23 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        @media (max-width: 420px) {
+            .row { flex-direction: column; }
+            .row .icon-button { align-self: flex-end; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <header class="topbar">Maodie 控制中心</header>
+        <h1 class="topbar">Maodie 控制中心</h1>
 
         <section class="card">
             <div class="card-header">
@@ -305,7 +322,12 @@
             }
 
             const callbackName = `ksuExecCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            const timer = setTimeout(() => {
+                delete window[callbackName];
+                reject(new Error('操作超时，请稍后重试'));
+            }, 30000);
             window[callbackName] = (errno, stdout, stderr) => {
+                clearTimeout(timer);
                 delete window[callbackName];
                 resolve({ errno, stdout: stdout || '', stderr: stderr || '' });
             };
@@ -342,11 +364,13 @@
 
         const setLoading = (btn, loading) => {
             btn.disabled = loading;
+            btn.setAttribute('aria-busy', String(loading));
             btn.classList.toggle('loading', loading);
         };
 
         const setFilled = (btn, filled) => {
             btn.classList.toggle('filled', filled);
+            btn.setAttribute('aria-pressed', String(filled));
         };
 
         const DNS_DEFAULT = `dns:
@@ -464,6 +488,8 @@
             setFilled(btnAGH, false);
             setFilled(btnFirst, false);
 
+            if (!configText) return;
+
             if (configText.includes("127.0.0.1:5591")) {
                 setFilled(btnAGH, true);
                 return;
@@ -576,32 +602,35 @@
             applyDnsState(configText);
         };
 
-        $('btnDnsFirstTime').addEventListener('click', async () => {
-            const btn = $('btnDnsFirstTime');
+        const runAction = async (btn, action) => {
             setLoading(btn, true);
-            try { await switchDns('firsttime'); }
-            finally { setLoading(btn, false); }
-        });
-
-        $('btnDnsDefault').addEventListener('click', async () => {
-            const btn = $('btnDnsDefault');
-            setLoading(btn, true);
-            try { await switchDns('default'); }
-            finally { setLoading(btn, false); }
-        });
-
-        $('btnDnsAGH').addEventListener('click', async () => {
-            const btn = $('btnDnsAGH');
-            setLoading(btn, true);
-            try { await switchDns('agh'); }
-            finally { setLoading(btn, false); }
-        });
-
-        $('saveBtn').addEventListener('click', async () => {
-            const btn = $('saveBtn');
-            setLoading(btn, true);
-
             try {
+                await action();
+            } catch (error) {
+                snackbar(error.message || "操作失败");
+            } finally {
+                setLoading(btn, false);
+            }
+        };
+
+        $('btnDnsFirstTime').addEventListener('click', () => {
+            const btn = $('btnDnsFirstTime');
+            runAction(btn, () => switchDns('firsttime'));
+        });
+
+        $('btnDnsDefault').addEventListener('click', () => {
+            const btn = $('btnDnsDefault');
+            runAction(btn, () => switchDns('default'));
+        });
+
+        $('btnDnsAGH').addEventListener('click', () => {
+            const btn = $('btnDnsAGH');
+            runAction(btn, () => switchDns('agh'));
+        });
+
+        $('saveBtn').addEventListener('click', () => {
+            const btn = $('saveBtn');
+            runAction(btn, async () => {
                 let configText = await fetchConfigText();
                 if (!configText) {
                     snackbar("错误：无法读取配置文件");
@@ -617,6 +646,9 @@
 
                 for (const [provider, url] of Object.entries(urls)) {
                     if (!url) continue;
+                    if (!/^https?:\/\/[^\s"\\]+$/i.test(url)) {
+                        throw new Error(`${provider} 仅支持有效的 HTTP/HTTPS 地址`);
+                    }
                     const oldUrl = getProviderUrl(configText, provider);
                     if (oldUrl === url) continue;
                     configText = updateProviderUrl(configText, provider, url);
@@ -633,26 +665,24 @@
                     snackbar("未检测到链接变更");
                 }
                 await loadHistory();
-            } finally {
-                setLoading(btn, false);
-            }
+            });
         });
 
-        $('refreshBtn').addEventListener('click', async () => {
+        $('refreshBtn').addEventListener('click', () => {
             const btn = $('refreshBtn');
-            setLoading(btn, true);
-            try {
+            runAction(btn, async () => {
                 await loadPageState();
                 snackbar("数据已刷新");
-            } finally {
-                setLoading(btn, false);
-            }
+            });
         });
 
-        $('clearLogBtn').addEventListener('click', async () => {
-            await exec(`rm -f ${LOG_FILE}`);
-            await loadHistory();
-            snackbar("记录已清空");
+        $('clearLogBtn').addEventListener('click', () => {
+            const btn = $('clearLogBtn');
+            runAction(btn, async () => {
+                await execChecked(`rm -f ${LOG_FILE}`);
+                await loadHistory();
+                snackbar("记录已清空");
+            });
         });
 
         window.addEventListener('DOMContentLoaded', async () => {
