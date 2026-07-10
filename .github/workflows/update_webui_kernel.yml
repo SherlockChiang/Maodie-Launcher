@@ -221,6 +221,11 @@ jobs:
           echo "release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
           echo "release_tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -m "$COMMIT_MSG"
+          git push origin "HEAD:refs/heads/release-staging/$TAG_NAME"
+          echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           {
             echo 'body<<EOF'
             cat /tmp/body.md
@@ -263,6 +268,7 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.commit.outputs.release_tag }}
+          target_commitish: ${{ steps.commit.outputs.release_commit }}
           name: Maodie Launcher ${{ steps.commit.outputs.release_tag }}
           body: ${{ steps.commit.outputs.body }}
           draft: true
@@ -276,12 +282,12 @@ jobs:
         env:
           COMMIT_MSG: ${{ steps.commit.outputs.commit_msg }}
           RELEASE_TAG: ${{ steps.commit.outputs.release_tag }}
+          RELEASE_COMMIT: ${{ steps.commit.outputs.release_commit }}
+          TARGET_BRANCH: ${{ github.ref_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
           gh release edit "$RELEASE_TAG" --draft=false
-          git commit -m "$COMMIT_MSG"
-          git push
+          git push origin "$RELEASE_COMMIT:refs/heads/$TARGET_BRANCH"
+          git push origin --delete "release-staging/$RELEASE_TAG"
