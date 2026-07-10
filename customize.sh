@@ -80,14 +80,16 @@ ensure_api_secret() {
 ui_print "- 正在哈气..."
 
 ui_print "- 解压核心文件..."
-unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2
+unzip -o "$ZIPFILE" -x 'META-INF/*' -d "$MODPATH" >&2 || abort "解压模块失败"
+[ -f "$MODPATH/maodie/kernel/Mihomo" ] || abort "模块缺少 Mihomo 核心"
+[ -f "$NEW_CONFIG" ] || abort "模块缺少默认配置"
 
 ui_print "- 设置执行权限..."
-chmod +x $MODPATH/service.sh
-chmod +x $MODPATH/post-fs-data.sh
-chmod +x $MODPATH/uninstall.sh
-chmod -R +x $MODPATH/maodie/scripts/
-chmod 755 $MODPATH/maodie/kernel/Mihomo
+chmod +x "$MODPATH/service.sh"
+chmod +x "$MODPATH/post-fs-data.sh"
+chmod +x "$MODPATH/uninstall.sh"
+chmod -R +x "$MODPATH/maodie/scripts/"
+chmod 755 "$MODPATH/maodie/kernel/Mihomo"
 chmod 700 "$MODPATH/maodie/config"
 chmod 600 "$MODPATH/maodie/config/config.yaml"
 chmod -R 600 "$MODPATH/maodie/config/proxy_providers" 2>/dev/null
@@ -101,7 +103,7 @@ if [ -d "$EXISTING_DIR" ]; then
   if [ -d "$OLD_PROVIDERS_DIR" ]; then
     ui_print "  发现旧版 proxy_providers 文件夹，正在保留..."
     mkdir -p "$NEW_PROVIDERS_DIR"
-    cp -rf "$OLD_PROVIDERS_DIR/." "$NEW_PROVIDERS_DIR/" 2>/dev/null || true
+    cp -rf "$OLD_PROVIDERS_DIR/." "$NEW_PROVIDERS_DIR/" 2>/dev/null || abort "proxy_providers 迁移失败"
     chmod -R 600 "$NEW_PROVIDERS_DIR"
     ui_print "  ✅ proxy_providers 文件夹迁移完成"
   else
@@ -110,7 +112,7 @@ if [ -d "$EXISTING_DIR" ]; then
 
   if [ -f "$OLD_CACHE_DB" ]; then
     ui_print "  发现旧版 cache.db，正在保留..."
-    cp -f "$OLD_CACHE_DB" "$NEW_CACHE_DB" 2>/dev/null || true
+    cp -f "$OLD_CACHE_DB" "$NEW_CACHE_DB" 2>/dev/null || abort "cache.db 迁移失败"
     chmod 600 "$NEW_CACHE_DB"
     ui_print "  ✅ cache.db 迁移完成"
   else
@@ -121,7 +123,7 @@ if [ -d "$EXISTING_DIR" ]; then
     ui_print "  发现旧版本配置，正在提取订阅信息..."
 
     # 备份旧配置，万一迁移失败可手动恢复
-    cp -f "$OLD_CONFIG" "$MODPATH/config.yaml.backup" 2>/dev/null || true
+    cp -f "$OLD_CONFIG" "$MODPATH/config.yaml.backup" 2>/dev/null || abort "旧配置备份失败"
 
     sed -n '/^proxy-providers:/,/^proxy-groups:/ { /^proxy-groups:/d; p; }' "$OLD_CONFIG" > "$TEMP_PROVIDERS" 2>/dev/null || true
     sed -i '/^[ \t]*$/d' "$TEMP_PROVIDERS" 2>/dev/null || true
@@ -138,24 +140,25 @@ if [ -d "$EXISTING_DIR" ]; then
         echo "" >> "$FINAL_CONFIG"
         tail -n +$END_LINE "$NEW_CONFIG" >> "$FINAL_CONFIG"
 
-        # 验证合并结果基本完整性
-        if grep -q "^proxy-providers:" "$FINAL_CONFIG" && grep -q "^proxy-groups:" "$FINAL_CONFIG" && grep -q "^rules:" "$FINAL_CONFIG"; then
-          mv -f "$FINAL_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
+        # 标题完整且 Mihomo 能实际加载时才接受合并结果。
+        if grep -q "^proxy-providers:" "$FINAL_CONFIG" && grep -q "^proxy-groups:" "$FINAL_CONFIG" && grep -q "^rules:" "$FINAL_CONFIG" \
+            && "$MODPATH/maodie/kernel/Mihomo" -t -d "$MODPATH/maodie/config" -f "$FINAL_CONFIG" >/dev/null 2>&1; then
+          mv -f "$FINAL_CONFIG" "$NEW_CONFIG" || abort "无法保存迁移后的配置"
           ui_print "  ✅ 配置文件合并完成：新规则 + 旧订阅"
         else
           ui_print "  ⚠️ 警告：合并后的配置缺少关键段落，回退旧配置。"
           rm -f "$FINAL_CONFIG"
-          cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
+          cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法恢复旧配置"
         fi
       else
         ui_print "  ⚠️ 警告：新配置结构异常，无法定位锚点。"
         ui_print "  -> 保留旧版完整配置以防丢失订阅。"
-        cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
+        cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
       fi
     else
       ui_print "  ⚠️ 警告：无法从旧配置提取 providers。"
       ui_print "  -> 可能是格式不标准，已保留旧版完整配置。"
-      cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || true
+      cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
     fi
 
     rm -f "$TEMP_PROVIDERS"
@@ -165,3 +168,5 @@ else
 fi
 
 ensure_api_secret
+chmod 700 "$MODPATH/maodie/config" 2>/dev/null
+chmod 600 "$NEW_CONFIG" "$MODPATH/config.yaml.backup" 2>/dev/null
