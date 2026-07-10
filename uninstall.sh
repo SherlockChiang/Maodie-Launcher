@@ -8,14 +8,14 @@ CORE_SCRIPT="$MOD_DIR/maodie/scripts/core.sh"
 if [ -x "$CORE_SCRIPT" ]; then
     sh "$CORE_SCRIPT" stop 2>/dev/null
 else
-    killall -15 Mihomo 2>/dev/null
+    pkill -15 -f "$MOD_DIR/maodie/kernel/Mihomo" 2>/dev/null
     sleep 1
-    killall -9 Mihomo 2>/dev/null
+    pkill -9 -f "$MOD_DIR/maodie/kernel/Mihomo" 2>/dev/null
 fi
 
 # 2. 停止看门狗与去广告服务
 pkill -f "$MOD_DIR/maodie/scripts/monitor.sh" 2>/dev/null
-pkill -f "NoAdsService.sh" 2>/dev/null
+pkill -f "$MOD_DIR/maodie/scripts/NoAdsService.sh" 2>/dev/null
 
 # 3. 仅恢复本模块实际修改过的路径，不依赖当前版本清单。
 ADBLOCK_STATE="$MOD_DIR/maodie/config/adblock.state"
