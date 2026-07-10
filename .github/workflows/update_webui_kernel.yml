@@ -108,7 +108,7 @@ jobs:
       # ==========================================
       # 步骤 3: 核心逻辑 (含 Commit 提取功能)
       # ==========================================
-      - name: Prepare Release Info & Commit
+      - name: Prepare Release Info
         id: commit
         env:
           JOB_TYPE: ${{ github.event.inputs.job_type }}
@@ -117,9 +117,6 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
           MODE="$JOB_TYPE"
           : "${MODE:=check_update}"
@@ -216,11 +213,9 @@ jobs:
             echo "release=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          git commit -m "$COMMIT_MSG"
-          git push
-
           echo "release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
           echo "release_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
           {
             echo 'body<<EOF'
             cat /tmp/body.md
@@ -244,21 +239,40 @@ jobs:
             echo "❌ 错误：文件未生成！"
             exit 1
           fi
+          unzip -t "$FINAL_ZIP" >/dev/null
+          for required in module.prop customize.sh service.sh maodie/kernel/Mihomo maodie/config/config.yaml; do
+            unzip -Z1 "$FINAL_ZIP" | grep -Fxq "$required" || { echo "❌ ZIP 缺少 $required"; exit 1; }
+          done
           echo "✅ 打包完成: $(ls -lh "$FINAL_ZIP" | awk '{print $5, $NF}')"
           echo "zip_name=$FINAL_ZIP" >> $GITHUB_ENV
 
       # ==========================================
       # 步骤 5: 发布 Release
       # ==========================================
-      - name: Create Release
+      - name: Create Draft Release
         if: steps.commit.outputs.release == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.commit.outputs.release_tag }}
           name: Maodie Launcher ${{ steps.commit.outputs.release_tag }}
           body: ${{ steps.commit.outputs.body }}
-          draft: false
+          draft: true
           prerelease: false
           files: ${{ env.zip_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Release And Metadata
+        if: steps.commit.outputs.release == 'true'
+        env:
+          COMMIT_MSG: ${{ steps.commit.outputs.commit_msg }}
+          RELEASE_TAG: ${{ steps.commit.outputs.release_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          gh release edit "$RELEASE_TAG" --draft=false
+          git commit -m "$COMMIT_MSG"
+          git push
