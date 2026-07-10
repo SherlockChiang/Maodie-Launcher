@@ -11,6 +11,7 @@ LOG_FILE="$RUN_DIR/kernel.log"
 LOG_MAX_SIZE=524288  # 512KB
 WAIT_MODE_FILE="$RUN_DIR/iptables_wait.mode"
 LOCK_DIR="$RUN_DIR/core.lock"
+SYSCTL_STATE="$RUN_DIR/sysctl.state"
 
 API_LEVEL=$(getprop ro.build.version.sdk)
 
@@ -101,9 +102,25 @@ detect_iptables_wait() {
 safe_sysctl() {
     local val=$1
     local file=$2
-    if [ -f "$file" ]; then
-        echo "$val" > "$file" 2>/dev/null
+    local current
+    [ -f "$file" ] || return
+    current=$(cat "$file" 2>/dev/null) || return
+    [ "$current" = "$val" ] && return
+    if ! grep -Fq "$file|" "$SYSCTL_STATE" 2>/dev/null; then
+        printf '%s|%s|%s\n' "$file" "$current" "$val" >> "$SYSCTL_STATE"
+        chmod 600 "$SYSCTL_STATE" 2>/dev/null
     fi
+    echo "$val" > "$file" 2>/dev/null
+}
+
+restore_tuning() {
+    [ -f "$SYSCTL_STATE" ] || return
+    while IFS='|' read -r file original applied; do
+        [ -f "$file" ] || continue
+        current=$(cat "$file" 2>/dev/null) || continue
+        [ "$current" = "$applied" ] && echo "$original" > "$file" 2>/dev/null
+    done < "$SYSCTL_STATE"
+    rm -f "$SYSCTL_STATE"
 }
 
 apply_tuning() {
@@ -244,6 +261,7 @@ stop() {
     fi
 
     clear_iptables
+    restore_tuning
     echo "--- Core stopped (Time: $(date)) ---" >> "$LOG_FILE"
 }
 

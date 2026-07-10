@@ -20,6 +20,8 @@ chmod 600 "$LOG_FILE" 2>/dev/null
 
 # 清理上次关机前残留的 PID 文件（重启后 PID 可能被其它进程复用，避免误判"已运行"）
 rm -f "$MODDIR/maodie/run/kernel.pid"
+# sysctl 在重启时已由内核恢复默认值，旧快照不能跨启动复用。
+rm -f "$MODDIR/maodie/run/sysctl.state"
 
 # 0. 前置检查：核心二进制和配置文件是否存在
 if [ ! -f "$KERNEL_BIN" ]; then
