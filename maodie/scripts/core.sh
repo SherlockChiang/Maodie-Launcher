@@ -9,6 +9,7 @@ RUN_DIR="$MOD_DIR/maodie/run"
 PID_FILE="$RUN_DIR/kernel.pid"
 LOG_FILE="$RUN_DIR/kernel.log"
 LOG_MAX_SIZE=524288  # 512KB
+OOM_SCORE_ADJ=${MAODIE_OOM_SCORE_ADJ:--200}
 WAIT_MODE_FILE="$RUN_DIR/iptables_wait.mode"
 LOCK_DIR="$RUN_DIR/core.lock"
 SYSCTL_STATE="$RUN_DIR/sysctl.state"
@@ -225,9 +226,7 @@ start() {
     fi
 
     if [ -f /proc/$PID/oom_score_adj ]; then
-        echo -900 > /proc/$PID/oom_score_adj 2>/dev/null
-    else
-        echo -16 > /proc/$PID/oom_adj 2>/dev/null
+        echo "$OOM_SCORE_ADJ" > /proc/$PID/oom_score_adj 2>/dev/null
     fi
 
     apply_iptables
