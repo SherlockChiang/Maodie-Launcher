@@ -22,6 +22,20 @@ $IncludeItems = @(
     "action.sh"
 )
 
+$ExcludedRelativePaths = @(
+    "maodie/config/cache.db",
+    "maodie/config/adblock.enabled",
+    "maodie/config/adblock.state",
+    "maodie/config/config.yaml.last-good"
+)
+
+function Test-ExcludedPath($relativePath) {
+    if ($ExcludedRelativePaths -contains $relativePath) { return $true }
+    if ($relativePath.StartsWith("maodie/config/proxy_providers/")) { return $true }
+    if ($relativePath.StartsWith("maodie/run/") -and $relativePath -ne "maodie/run/.gitkeep") { return $true }
+    return $false
+}
+
 function Write-Step($msg)  { Write-Host ">> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)    { Write-Host "   $msg" -ForegroundColor Green }
 function Write-Warn($msg)  { Write-Host "   $msg" -ForegroundColor Yellow }
@@ -107,37 +121,53 @@ if (Test-Path $zipPath) {
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-$zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
+$zip = $null
+try {
+    $zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
 
-foreach ($item in $IncludeItems) {
-    $fullPath = Join-Path $ProjectRoot $item
+    foreach ($item in $IncludeItems) {
+        $fullPath = Join-Path $ProjectRoot $item
 
-    if (Test-Path $fullPath -PathType Container) {
-        $files = Get-ChildItem -Path $fullPath -Recurse -File
-        foreach ($file in $files) {
-            $relativePath = $file.FullName.Substring($ProjectRoot.Length + 1).Replace('\', '/')
+        if (Test-Path $fullPath -PathType Container) {
+            $files = Get-ChildItem -Path $fullPath -Recurse -File
+            foreach ($file in $files) {
+                $relativePath = $file.FullName.Substring($ProjectRoot.Length + 1).Replace('\', '/')
+                if (Test-ExcludedPath $relativePath) { continue }
+                $entry = $zip.CreateEntry($relativePath)
+                $stream = $entry.Open()
+                try {
+                    $fs = [System.IO.File]::OpenRead($file.FullName)
+                    try { $fs.CopyTo($stream) } finally { $fs.Dispose() }
+                } finally { $stream.Dispose() }
+            }
+        } elseif (Test-Path $fullPath -PathType Leaf) {
+            $relativePath = $item.Replace('\', '/')
             $entry = $zip.CreateEntry($relativePath)
             $stream = $entry.Open()
-            $fs = [System.IO.File]::OpenRead($file.FullName)
-            $fs.CopyTo($stream)
-            $fs.Close()
-            $stream.Close()
+            try {
+                $fs = [System.IO.File]::OpenRead($fullPath)
+                try { $fs.CopyTo($stream) } finally { $fs.Dispose() }
+            } finally { $stream.Dispose() }
         }
-    } elseif (Test-Path $fullPath -PathType Leaf) {
-        $relativePath = $item.Replace('\', '/')
-        $entry = $zip.CreateEntry($relativePath)
-        $stream = $entry.Open()
-        $fs = [System.IO.File]::OpenRead($fullPath)
-        $fs.CopyTo($stream)
-        $fs.Close()
-        $stream.Close()
     }
+} catch {
+    if ($zip) { $zip.Dispose(); $zip = $null }
+    Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+    throw
+} finally {
+    if ($zip) { $zip.Dispose() }
 }
-
-$zip.Dispose()
 
 # ─── 结果 ─────────────────────────────────────────────────────
 if (Test-Path $zipPath) {
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        $required = @("module.prop", "customize.sh", "service.sh", "maodie/kernel/Mihomo", "maodie/config/config.yaml")
+        $entries = @($archive.Entries | ForEach-Object { $_.FullName })
+        foreach ($path in $required) {
+            if ($entries -notcontains $path) { throw "ZIP 缺少必要文件: $path" }
+        }
+    } finally { $archive.Dispose() }
     $sizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Green

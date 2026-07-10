@@ -79,6 +79,12 @@ ensure_api_secret() {
 
 ui_print "- 正在哈气..."
 
+DEVICE_ABI=$(getprop ro.product.cpu.abi 2>/dev/null)
+case "$DEVICE_ABI" in
+  arm64-v8a|arm64*) ;;
+  *) abort "不支持的设备架构：$DEVICE_ABI（仅支持 ARM64）" ;;
+esac
+
 ui_print "- 解压核心文件..."
 unzip -o "$ZIPFILE" -x 'META-INF/*' -d "$MODPATH" >&2 || abort "解压模块失败"
 [ -f "$MODPATH/maodie/kernel/Mihomo" ] || abort "模块缺少 Mihomo 核心"

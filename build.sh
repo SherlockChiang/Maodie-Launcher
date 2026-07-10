@@ -101,10 +101,15 @@ rm -f "$ZIP_PATH"
 
 (
     cd "$SCRIPT_DIR"
-    zip -r "$ZIP_NAME" "${INCLUDE[@]}" -x "*.DS_Store" "*/__MACOSX/*" >/dev/null 2>&1
+    zip -r "$ZIP_NAME" "${INCLUDE[@]}" \
+        -x "*.DS_Store" "*/__MACOSX/*" \
+        "maodie/run/*" "maodie/config/proxy_providers/*" \
+        "maodie/config/cache.db" "maodie/config/adblock.enabled" \
+        "maodie/config/adblock.state" "maodie/config/config.yaml.last-good" >/dev/null 2>&1
+    zip "$ZIP_NAME" maodie/run/.gitkeep >/dev/null 2>&1
 )
 
-if [ -f "$ZIP_PATH" ]; then
+if [ -f "$ZIP_PATH" ] && unzip -t "$ZIP_PATH" >/dev/null; then
     SIZE=$(du -h "$ZIP_PATH" | cut -f1)
     echo ""
     echo -e "${GREEN}========================================${NC}"
