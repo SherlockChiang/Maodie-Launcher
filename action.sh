@@ -59,16 +59,27 @@ fi
 
 if [ -x "$CORE_SCRIPT" ]; then
     if [ "$secret_changed" -eq 1 ]; then
-        sh "$CORE_SCRIPT" restart >/dev/null 2>&1
+        core_action=restart
     else
-        sh "$CORE_SCRIPT" start >/dev/null 2>&1
+        core_action=start
     fi
+    if ! sh "$CORE_SCRIPT" "$core_action"; then
+        echo "Maodie 核心启动失败，最近日志：" >&2
+        tail -n 20 "$MODDIR/maodie/run/kernel.log" 2>/dev/null >&2
+        exit 1
+    fi
+else
+    echo "找不到核心控制脚本。" >&2
+    exit 1
 fi
 
 # 不把 API secret 放进 ACTION_VIEW URI，避免浏览器/URL handler 获取管理凭据。
 URL="$CONTROLLER_URL/ui/"
 
-am start -a android.intent.action.VIEW -d "$URL" --user 0 >/dev/null 2>&1 \
-    || am start -a android.intent.action.VIEW -d "$URL" >/dev/null 2>&1
+if ! am start -a android.intent.action.VIEW -d "$URL" --user 0 >/dev/null 2>&1 \
+    && ! am start -a android.intent.action.VIEW -d "$URL" >/dev/null 2>&1; then
+    echo "无法打开浏览器，请手动访问 $URL" >&2
+    exit 1
+fi
 
 exit 0
