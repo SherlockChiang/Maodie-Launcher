@@ -16,8 +16,13 @@ cleanup() {
 }
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    echo "Another configuration update is in progress." >&2
-    exit 1
+    old_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+    if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        echo "Another configuration update is in progress." >&2
+        exit 1
+    fi
+    rm -rf "$LOCK_DIR"
+    mkdir "$LOCK_DIR" 2>/dev/null || exit 1
 fi
 echo $$ > "$LOCK_DIR/pid"
 trap cleanup EXIT INT TERM
