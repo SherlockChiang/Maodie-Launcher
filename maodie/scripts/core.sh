@@ -262,7 +262,6 @@ status() {
 reapply() {
     local old_log="$LOG_FILE"
     LOG_FILE=/dev/null
-    apply_tuning
     apply_iptables
     LOG_FILE="$old_log"
 }

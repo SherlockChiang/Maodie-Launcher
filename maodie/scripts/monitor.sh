@@ -15,7 +15,8 @@ DISABLE_FILE="$MOD_DIR/disable"
 LOCK_DIR="$RUN_DIR/monitor.lock"
 LOG="$RUN_DIR/monitor.log"
 LOG_MAX=262144          # 256KB
-CHECK_INTERVAL=30       # 巡检间隔（秒）
+CHECK_INTERVAL=60       # 正常巡检间隔（秒）
+MAX_BACKOFF=900         # 连续启动失败最长退避 15 分钟
 SYSTEM_SERVER_STATE="$RUN_DIR/system_server.start_count"
 TUN_IFACE="utun"
 TUN_TABLE="2022"
@@ -109,30 +110,57 @@ tun_route_healthy() {
     return 0
 }
 
+iptables_healthy() {
+    iptables -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null || return 1
+    iptables -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null || return 1
+    iptables -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null
+}
+
 log "Watchdog started (PID $$), interval ${CHECK_INTERVAL}s."
+route_failures=0
+start_failures=0
 
 while :; do
+    next_sleep=$CHECK_INTERVAL
     if [ -f "$DISABLE_FILE" ]; then
         # 用户已在管理器禁用：确保内核停止
         if mihomo_alive; then
             log "Module disabled by user, stopping core."
             sh "$CORE_SCRIPT" stop
         fi
+        route_failures=0
+        start_failures=0
     elif ! mihomo_alive; then
         # 进程不在（异常退出 / 被杀）：重启（core.sh start 会一并铺好规则）
         log "Mihomo not running, (re)starting core."
-        sh "$CORE_SCRIPT" start
+        if sh "$CORE_SCRIPT" start; then
+            start_failures=0
+        else
+            [ "$start_failures" -lt 4 ] && start_failures=$((start_failures + 1))
+            next_sleep=$((CHECK_INTERVAL * (1 << start_failures)))
+            [ "$next_sleep" -gt "$MAX_BACKOFF" ] && next_sleep=$MAX_BACKOFF
+            log "Core start failed (${start_failures}), retrying in ${next_sleep}s."
+        fi
+        route_failures=0
     elif system_server_restarted; then
         # framework 软重启会让 netd/connectivity 重建网络状态，Mihomo 进程可能还活着但 auto-route 入口丢失。
         log "system_server restart detected, restarting core to restore TUN routing."
         sh "$CORE_SCRIPT" restart
+        route_failures=0
     elif ! tun_route_healthy; then
-        # 进程和 utun 残留不代表流量仍被接管；缺 ip rule/table 入口时需要重启核心重建 auto-route。
-        log "TUN routing unhealthy, restarting core to rebuild auto-route."
-        sh "$CORE_SCRIPT" restart
-    else
-        # 进程健在：幂等重铺路由/规则。规则被 netd 冲掉时自动恢复，在位时是空操作。
+        route_failures=$((route_failures + 1))
+        if [ "$route_failures" -ge 3 ]; then
+            log "TUN routing unhealthy for ${route_failures} checks, restarting core."
+            sh "$CORE_SCRIPT" restart
+            route_failures=0
+        fi
+    elif ! iptables_healthy; then
+        log "Module iptables rules missing, reapplying."
         sh "$CORE_SCRIPT" reapply
+        route_failures=0
+    else
+        route_failures=0
+        start_failures=0
     fi
-    sleep "$CHECK_INTERVAL"
+    sleep "$next_sleep"
 done
