@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.267.2
+📦 **手动发布**
+- 版本: v20260712-29195253901-1
+- 基础 Commit: f1e464e
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260712-29177338241-1
+- fix: avoid false migration validation warnings (f1e464e)
+- fix: restore first-run webui authentication (a4ab811)
