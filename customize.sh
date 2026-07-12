@@ -165,13 +165,15 @@ if [ -d "$EXISTING_DIR" ]; then
         echo "" >> "$FINAL_CONFIG"
         tail -n +$END_LINE "$NEW_CONFIG" >> "$FINAL_CONFIG"
 
-        # 标题完整且 Mihomo 能实际加载时才接受合并结果。
-        if grep -q "^proxy-providers:" "$FINAL_CONFIG" && grep -q "^proxy-groups:" "$FINAL_CONFIG" && grep -q "^rules:" "$FINAL_CONFIG" \
-            && "$MODPATH/maodie/kernel/Mihomo" -t -d "$MODPATH/maodie/config" -f "$FINAL_CONFIG" >/dev/null 2>&1; then
+        # 安装阶段的临时模块目录可能尚无可执行 SELinux 上下文，不在此运行 Mihomo。
+        # 运行期 WebUI 配置更新仍由 configctl.sh 调用 Mihomo 做完整校验。
+        if grep -q "^proxy-providers:" "$FINAL_CONFIG" \
+            && grep -q "^proxy-groups:" "$FINAL_CONFIG" \
+            && grep -q "^rules:" "$FINAL_CONFIG"; then
           mv -f "$FINAL_CONFIG" "$NEW_CONFIG" || abort "无法保存迁移后的配置"
           ui_print "  ✅ 配置文件合并完成：新规则 + 旧订阅"
         else
-          ui_print "  ⚠️ 警告：合并后的配置缺少关键段落，回退旧配置。"
+          ui_print "  ⚠️ 警告：合并后的配置确实缺少关键段落，回退旧配置。"
           rm -f "$FINAL_CONFIG"
           cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法恢复旧配置"
         fi
