@@ -1,7 +1,8 @@
 📦 **手动发布**
-- 版本: v20260712-29195253901-1
-- 基础 Commit: f1e464e
+- 版本: v20260713-29200126759-1
+- 基础 Commit: c196a23
 
 ### 📝 变更日志 (Changelog):
-- fix: avoid false migration validation warnings (f1e464e)
-- fix: restore first-run webui authentication (a4ab811)
+- feat: support optional extra subscriptions (c196a23)
+- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (e6af9d2)
+- feat: allow single subscription setup (e28f898)
