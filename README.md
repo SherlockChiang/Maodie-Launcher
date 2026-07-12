@@ -36,7 +36,7 @@
 
 在 KSU/APatch/Magisk 管理器中直接刷入 release 中的模块。
 
-首次使用前，请编辑 `maodie/config/config.yaml`，把 `proxy-providers` 中的 `url: "请填写您自己的代理地址"` 替换为您自己的订阅链接；占位符不替换时，核心可能可以启动，但节点不可用。
+首次使用只需配置一个订阅地址：在模块 WebUI 中填写 Provider 1，或编辑 `maodie/config/config.yaml`，把 `provider1` 的占位 URL 替换为自己的订阅链接。需要多个 provider 时可自行按相同结构追加，名称和缓存 path 不能重复。
 
 WebUI 访问：
 

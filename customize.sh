@@ -16,6 +16,7 @@ OLD_ADBLOCK_ENABLE="$EXISTING_DIR/maodie/config/adblock.enabled"
 
 NEW_CONFIG="$MODPATH/maodie/config/config.yaml"
 TEMP_PROVIDERS="$MODPATH/user_providers.yaml"
+FILTERED_PROVIDERS="$MODPATH/user_providers.filtered.yaml"
 FINAL_CONFIG="$MODPATH/maodie/config/config.yaml.final"
 
 get_config_secret() {
@@ -153,6 +154,31 @@ if [ -d "$EXISTING_DIR" ]; then
     sed -n '/^proxy-providers:/,/^proxy-groups:/ { /^proxy-groups:/d; p; }' "$OLD_CONFIG" > "$TEMP_PROVIDERS" 2>/dev/null || true
     sed -i '/^[ \t]*$/d' "$TEMP_PROVIDERS" 2>/dev/null || true
 
+    # 丢弃从未配置过的默认占位 provider；真实的一个或多个 provider 均原样保留。
+    awk '
+      function flush_provider() {
+        if (provider_block != "" && provider_block !~ /请填写您自己的代理地址/) {
+          printf "%s", provider_block
+        }
+        provider_block = ""
+      }
+      NR == 1 { print; next }
+      /^  [^[:space:]][^:]*:[[:space:]]*$/ {
+        flush_provider()
+        provider_block = $0 ORS
+        next
+      }
+      { provider_block = provider_block $0 ORS }
+      END { flush_provider() }
+    ' "$TEMP_PROVIDERS" > "$FILTERED_PROVIDERS" 2>/dev/null || true
+    NO_CONFIGURED_PROVIDER=0
+    if grep -q '^  [^[:space:]][^:]*:[[:space:]]*$' "$FILTERED_PROVIDERS" 2>/dev/null; then
+      mv -f "$FILTERED_PROVIDERS" "$TEMP_PROVIDERS"
+    else
+      rm -f "$FILTERED_PROVIDERS" "$TEMP_PROVIDERS"
+      NO_CONFIGURED_PROVIDER=1
+    fi
+
     if [ -s "$TEMP_PROVIDERS" ]; then
       ui_print "  成功提取旧订阅 (proxy-providers)！"
 
@@ -183,12 +209,16 @@ if [ -d "$EXISTING_DIR" ]; then
         cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
       fi
     else
-      ui_print "  ⚠️ 警告：无法从旧配置提取 providers。"
-      ui_print "  -> 可能是格式不标准，已保留旧版完整配置。"
-      cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
+      if [ "$NO_CONFIGURED_PROVIDER" -eq 1 ]; then
+        ui_print "  未发现已配置的订阅，保留新版单 provider 模板。"
+      else
+        ui_print "  ⚠️ 警告：无法从旧配置提取 providers。"
+        ui_print "  -> 可能是格式不标准，已保留旧版完整配置。"
+        cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
+      fi
     fi
 
-    rm -f "$TEMP_PROVIDERS"
+    rm -f "$TEMP_PROVIDERS" "$FILTERED_PROVIDERS"
   fi
 else
   ui_print "  首次安装，无需迁移。"

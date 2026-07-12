@@ -279,21 +279,12 @@
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96ZM14 13v4h-4v-4H7l5-5 5 5h-3Z"/></svg>
                 <h3>订阅节点配置</h3>
             </div>
-            <div class="card-desc">修改后将自动重启内核生效。留空则保持原链接不变。</div>
+            <div class="card-desc">只需填写一个订阅地址。修改后会先校验配置，再自动重启内核。</div>
 
             <div class="field">
                 <label for="url1">Provider 1 订阅地址</label>
                 <input id="url1" autocomplete="off">
             </div>
-            <div class="field">
-                <label for="url2">Provider 2 订阅地址</label>
-                <input id="url2" autocomplete="off">
-            </div>
-            <div class="field">
-                <label for="url3">Provider 3 订阅地址</label>
-                <input id="url3" autocomplete="off">
-            </div>
-
             <div class="row" style="margin-top: 16px;">
                 <button id="saveBtn" type="button">保存并重启</button>
                 <button id="refreshBtn" class="icon-button" type="button" title="刷新页面" aria-label="刷新页面">
@@ -588,8 +579,6 @@
 
         const applyConfigText = (text) => {
             $('url1').value = getProviderUrl(text, 'provider1');
-            $('url2').value = getProviderUrl(text, 'provider2');
-            $('url3').value = getProviderUrl(text, 'provider3');
         };
 
         const loadConfig = async () => {
@@ -638,10 +627,11 @@
                 }
 
                 const urls = {
-                    provider1: $('url1').value.trim(),
-                    provider2: $('url2').value.trim(),
-                    provider3: $('url3').value.trim()
+                    provider1: $('url1').value.trim()
                 };
+                if (!urls.provider1) {
+                    throw new Error('请至少填写一个订阅地址');
+                }
                 let updatedCount = 0;
 
                 for (const [provider, url] of Object.entries(urls)) {

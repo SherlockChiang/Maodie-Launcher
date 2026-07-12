@@ -88,25 +88,13 @@ proxies:
     type: direct
     udp: true
 
-# url 里填写自己的订阅,名称不能重复
+# 默认只需填写一个订阅；需要多个 provider 时可自行按相同结构追加，名称和 path 不能重复。
 proxy-providers:
   provider1:
     <<: *p
     url: "请填写您自己的代理地址"
     path: ./proxy_providers/subscribe1.yaml
     interval: 21600
-  
-  provider2:
-    <<: *p
-    url: "请填写您自己的代理地址"
-    path: ./proxy_providers/subscribe2.yaml
-    interval: 86400
-  
-  provider3:
-    <<: *p
-    url: "请填写您自己的代理地址"
-    path: ./proxy_providers/subscribe3.yaml
-    interval: 86400
 
 proxy-groups:
   - name: 默认
