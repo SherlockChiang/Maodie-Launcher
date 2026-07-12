@@ -36,7 +36,7 @@
 
 在 KSU/APatch/Magisk 管理器中直接刷入 release 中的模块。
 
-首次使用只需配置一个订阅地址：在模块 WebUI 中填写 Provider 1，或编辑 `maodie/config/config.yaml`，把 `provider1` 的占位 URL 替换为自己的订阅链接。需要多个 provider 时可自行按相同结构追加，名称和缓存 path 不能重复。
+首次使用只需配置一个订阅地址：在模块 WebUI 中填写 Provider 1，Provider 2/3 均为可选；也可以编辑 `maodie/config/config.yaml` 自行追加更多 provider，名称和缓存 path 不能重复。
 
 WebUI 访问：
 
