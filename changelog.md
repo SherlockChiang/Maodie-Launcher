@@ -1,8 +1,7 @@
-📦 **手动发布**
-- 版本: v20260713-29200126759-1
-- 基础 Commit: c196a23
+🎨 **面板更新**
+- 版本: v1.268.3
 
 ### 📝 变更日志 (Changelog):
-- feat: support optional extra subscriptions (c196a23)
-- Merge branch 'main' of https://github.com/SherlockChiang/Maodie-Launcher (e6af9d2)
-- feat: allow single subscription setup (e28f898)
+- (No new commits)
+
+📌 **Release Tag**: v20260714-29301319942-1
