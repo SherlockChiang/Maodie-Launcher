@@ -1,0 +1,1 @@
+var e={minimize:()=>{},toggleMaximize:()=>{},close:()=>{},isMaximized:()=>Promise.resolve(!1),onMaximizeChange:()=>()=>{}};function t(){let t=typeof window<`u`?window.metacubexd:void 0,n=t?.isDesktop===!0,r=t?.platform??null;return{isDesktop:n,platform:r,isMac:r===`darwin`,windowControls:{...e,...t?.window??{}},settings:t?.settings??null,hotkeys:t?.hotkeys??null}}export{t};
