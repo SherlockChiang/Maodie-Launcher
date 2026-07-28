@@ -1,1 +1,0 @@
-import{Jn as e,Xn as t}from"./BCp7ryyI.js";function n(){if(!(typeof window>`u`))return window.metacubexd}function r(r){let i=n(),a=i?.isDesktop?i.onBackendInvalidate?.(()=>r()):void 0;return a?(e()&&t(a),a):()=>{}}export{r as t};
