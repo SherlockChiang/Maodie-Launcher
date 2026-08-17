@@ -1,8 +1,6 @@
-🔥 **双重更新**
-- 内核: v1.19.30
-- 面板: v1.273.0
+📦 **手动发布**
+- 版本: v20260817-32006554917-1
+- 基础 Commit: e21da85
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20260817-31984479038-1
+- feat: harden module lifecycle and networking (e21da85)
