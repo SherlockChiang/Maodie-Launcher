@@ -13,6 +13,8 @@ NEW_CACHE_DB="$MODPATH/maodie/config/cache.db"
 OLD_ADBLOCK_STATE="$EXISTING_DIR/maodie/config/adblock.state"
 NEW_ADBLOCK_STATE="$MODPATH/maodie/config/adblock.state"
 OLD_ADBLOCK_ENABLE="$EXISTING_DIR/maodie/config/adblock.enabled"
+OLD_ADBLOCK_LIST="$EXISTING_DIR/maodie/config/adblock.list"
+NEW_ADBLOCK_LIST="$MODPATH/maodie/config/adblock.list"
 
 NEW_CONFIG="$MODPATH/maodie/config/config.yaml"
 TEMP_PROVIDERS="$MODPATH/user_providers.yaml"
@@ -23,18 +25,51 @@ get_config_secret() {
   config_path="$1"
   [ -f "$config_path" ] || return
   awk '
-    /^[[:space:]]*secret:[[:space:]]*/ {
-      sub(/^[[:space:]]*secret:[[:space:]]*/, "")
-      sub(/[[:space:]]*#.*/, "")
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "")
-      gsub(/^"/, "")
-      gsub(/"$/, "")
-      gsub(/^'\''/, "")
-      gsub(/'\''$/, "")
-      print
+    /^secret:[[:space:]]*/ {
+      value = $0
+      sub(/^secret:[[:space:]]*/, "", value)
+      sub(/[[:space:]][[:space:]]*#.*/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      first = substr(value, 1, 1)
+      last = substr(value, length(value), 1)
+      single_quote = sprintf("%c", 39)
+      if ((first == "\"" && last == "\"") ||
+          (first == single_quote && last == single_quote)) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      print value
       exit
     }
   ' "$config_path"
+}
+
+count_top_level_secrets() {
+  awk '/^secret:[[:space:]]*/ { count++ } END { print count + 0 }' "$1" 2>/dev/null
+}
+
+has_unsupported_secret_syntax() {
+  awk '
+    /^[^[:space:]#]/ {
+      line = $0
+      if (line ~ /^secret[[:space:]]+:/ ||
+          line ~ /^secret:[^[:space:]#]/ ||
+          line ~ /^"secret"[[:space:]]*:/ ||
+          (substr(line, 1, 8) == "\047secret\047" && substr(line, 9) ~ /^[[:space:]]*:/) ||
+          line ~ /^secret:[[:space:]]*[>|]/) {
+        found = 1
+      }
+    }
+    END { exit(found ? 0 : 1) }
+  ' "$1" 2>/dev/null
+}
+
+is_safe_secret() {
+  secret_value="$1"
+  [ -n "$secret_value" ] || return 1
+  [ "${#secret_value}" -le 256 ] || return 1
+  case "$secret_value" in
+    *[!A-Za-z0-9._~-]*) return 1 ;;
+  esac
 }
 
 generate_api_secret() {
@@ -53,32 +88,84 @@ generate_api_secret() {
 
 set_config_secret() {
   secret_value="$1"
-  escaped_secret=$(printf '%s' "$secret_value" | sed 's/[|&]/\\&/g')
-  if grep -q '^[[:space:]]*secret:' "$NEW_CONFIG"; then
-    sed -i "s|^[[:space:]]*secret:.*|secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App|" "$NEW_CONFIG"
-  elif grep -q '^external-controller:' "$NEW_CONFIG"; then
-    sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # 安装时自动生成；请勿泄露给其他 App" "$NEW_CONFIG"
-  else
-    printf '\nsecret: "%s"  # 安装时自动生成；请勿泄露给其他 App\n' "$secret_value" >> "$NEW_CONFIG"
-  fi
+  secret_tmp="$NEW_CONFIG.secret.$$"
+  is_safe_secret "$secret_value" || return 1
+
+  awk -v secret="$secret_value" '
+    BEGIN {
+      replacement = "secret: \"" secret "\"  # 安装时自动生成；请勿泄露给其他 App"
+      written = 0
+    }
+    /^secret:[[:space:]]*/ {
+      if (!written) {
+        print replacement
+        written = 1
+      }
+      next
+    }
+    /^external-controller:/ && !written {
+      print
+      print replacement
+      written = 1
+      next
+    }
+    { print }
+    END {
+      if (!written) {
+        if (NR > 0) print ""
+        print replacement
+      }
+    }
+  ' "$NEW_CONFIG" > "$secret_tmp" || {
+    rm -f "$secret_tmp"
+    return 1
+  }
+  chmod 600 "$secret_tmp" 2>/dev/null || {
+    rm -f "$secret_tmp"
+    return 1
+  }
+  mv -f "$secret_tmp" "$NEW_CONFIG"
+}
+
+atomic_replace_config() {
+  source_config="$1"
+  replace_tmp="$NEW_CONFIG.replace.$$"
+  cp -f "$source_config" "$replace_tmp" 2>/dev/null || {
+    rm -f "$replace_tmp"
+    return 1
+  }
+  chmod 600 "$replace_tmp" 2>/dev/null || {
+    rm -f "$replace_tmp"
+    return 1
+  }
+  mv -f "$replace_tmp" "$NEW_CONFIG"
 }
 
 ensure_api_secret() {
+  if has_unsupported_secret_syntax "$NEW_CONFIG"; then
+    abort "配置使用了不支持的顶层 secret YAML 写法；请改为 secret: \"value\""
+  fi
+
   current_secret=$(get_config_secret "$NEW_CONFIG")
-  if [ -z "$current_secret" ] && [ -f "$OLD_CONFIG" ]; then
+  current_secret_count=$(count_top_level_secrets "$NEW_CONFIG")
+  if [ "$current_secret_count" = "1" ] && is_safe_secret "$current_secret"; then
+    return
+  fi
+
+  if [ -f "$OLD_CONFIG" ]; then
     old_secret=$(get_config_secret "$OLD_CONFIG")
-    if [ -n "$old_secret" ]; then
-      set_config_secret "$old_secret"
+    old_secret_count=$(count_top_level_secrets "$OLD_CONFIG")
+    if [ "$old_secret_count" = "1" ] && is_safe_secret "$old_secret"; then
+      set_config_secret "$old_secret" || abort "无法保存旧配置 API secret"
       ui_print "  ✅ 已沿用旧配置 API secret"
       return
     fi
   fi
 
-  if [ -z "$current_secret" ]; then
-    new_secret=$(generate_api_secret)
-    set_config_secret "$new_secret"
-    ui_print "  ✅ 已生成随机 API secret"
-  fi
+  new_secret=$(generate_api_secret)
+  is_safe_secret "$new_secret" || abort "无法生成安全的 API secret"
+  set_config_secret "$new_secret" || abort "无法保存随机 API secret"
+  ui_print "  ✅ 已生成随机 API secret"
 }
 
 ui_print "- 正在哈气..."
@@ -98,11 +185,13 @@ ui_print "- 设置执行权限..."
 chmod +x "$MODPATH/service.sh"
 chmod +x "$MODPATH/post-fs-data.sh"
 chmod +x "$MODPATH/uninstall.sh"
+chmod +x "$MODPATH/action.sh"
 chmod -R +x "$MODPATH/maodie/scripts/"
 chmod 755 "$MODPATH/maodie/kernel/Mihomo"
 chmod 700 "$MODPATH/maodie/config"
 chmod 600 "$MODPATH/maodie/config/config.yaml"
-chmod -R 600 "$MODPATH/maodie/config/proxy_providers" 2>/dev/null
+find "$MODPATH/maodie/config/proxy_providers" -type d -exec chmod 700 {} \; 2>/dev/null
+find "$MODPATH/maodie/config/proxy_providers" -type f -exec chmod 600 {} \; 2>/dev/null
 find "$MODPATH/maodie/config/webui" -type d -exec chmod 755 {} \;
 find "$MODPATH/maodie/config/webui" -type f -exec chmod 644 {} \;
 
@@ -111,26 +200,54 @@ ui_print "- 开始配置迁移..."
 if [ -d "$EXISTING_DIR" ]; then
 
   if [ -f "$OLD_ADBLOCK_STATE" ]; then
-    cp -f "$OLD_ADBLOCK_STATE" "$NEW_ADBLOCK_STATE" || abort "去广告恢复账本迁移失败"
-    chmod 600 "$NEW_ADBLOCK_STATE"
+    state_tmp="$NEW_ADBLOCK_STATE.tmp.$$"
+    cp -f "$OLD_ADBLOCK_STATE" "$state_tmp" || abort "去广告恢复账本迁移失败"
+    chmod 600 "$state_tmp" || abort "无法设置去广告恢复账本权限"
+    mv -f "$state_tmp" "$NEW_ADBLOCK_STATE" || abort "无法提交去广告恢复账本"
   else
-    # 旧版没有变更账本；升级到默认关闭策略时解除旧清单可能留下的 immutable。
-    OLD_ADBLOCK_LIST="$EXISTING_DIR/maodie/config/adblock.list"
+    # 安装期可能早于 user 0 CE 解锁，不能在这里把 missing/chattr 失败
+    # 当作已恢复。将旧清单迁成待恢复账本，由运行期解锁后处理。
     if [ -f "$OLD_ADBLOCK_LIST" ]; then
+      state_tmp="$NEW_ADBLOCK_STATE.tmp.$$"
+      rm -f "$state_tmp"
       while IFS= read -r target || [ -n "$target" ]; do
         case "$target" in ''|\#*) continue ;; esac
-        chattr -i "$target" 2>/dev/null
+        while [ "${target%/}" != "$target" ]; do target=${target%/}; done
+        case "$target" in
+          /data/data/*/*|/data/media/0/Android/data/*/*)
+            case "$target" in *'//'*|*'/../'*|*/..|*'/./'*|*/.|*[[:space:]]) continue ;; esac
+            printf '%s\n' "$target" >> "$state_tmp" || abort "无法创建旧版去广告待恢复账本"
+            ;;
+        esac
       done < "$OLD_ADBLOCK_LIST"
+      if [ -s "$state_tmp" ]; then
+        chmod 600 "$state_tmp" || abort "无法设置旧版去广告待恢复账本权限"
+        mv -f "$state_tmp" "$NEW_ADBLOCK_STATE" || abort "无法提交旧版去广告待恢复账本"
+        ui_print "  ⚠️ 旧版去广告路径将在用户解锁后恢复"
+      else
+        rm -f "$state_tmp"
+      fi
     fi
   fi
 
-  [ -f "$OLD_ADBLOCK_ENABLE" ] && cp -f "$OLD_ADBLOCK_ENABLE" "$MODPATH/maodie/config/adblock.enabled"
+  if [ -f "$OLD_ADBLOCK_ENABLE" ]; then
+    if command -v cmp >/dev/null 2>&1 \
+        && [ -f "$OLD_ADBLOCK_LIST" ] \
+        && [ -f "$NEW_ADBLOCK_LIST" ] \
+        && cmp -s "$OLD_ADBLOCK_LIST" "$NEW_ADBLOCK_LIST"; then
+      cp -f "$OLD_ADBLOCK_ENABLE" "$MODPATH/maodie/config/adblock.enabled" \
+        || abort "无法迁移去广告启用状态"
+    else
+      ui_print "  ⚠️ 去广告清单已变化；本次升级后需重新确认并启用"
+    fi
+  fi
 
   if [ -d "$OLD_PROVIDERS_DIR" ]; then
     ui_print "  发现旧版 proxy_providers 文件夹，正在保留..."
     mkdir -p "$NEW_PROVIDERS_DIR"
     cp -rf "$OLD_PROVIDERS_DIR/." "$NEW_PROVIDERS_DIR/" 2>/dev/null || abort "proxy_providers 迁移失败"
-    chmod -R 600 "$NEW_PROVIDERS_DIR"
+    find "$NEW_PROVIDERS_DIR" -type d -exec chmod 700 {} \; 2>/dev/null
+    find "$NEW_PROVIDERS_DIR" -type f -exec chmod 600 {} \; 2>/dev/null
     ui_print "  ✅ proxy_providers 文件夹迁移完成"
   else
     ui_print "  未发现旧版 proxy_providers 文件夹，跳过..."
@@ -201,12 +318,12 @@ if [ -d "$EXISTING_DIR" ]; then
         else
           ui_print "  ⚠️ 警告：合并后的配置确实缺少关键段落，回退旧配置。"
           rm -f "$FINAL_CONFIG"
-          cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法恢复旧配置"
+          atomic_replace_config "$OLD_CONFIG" || abort "无法恢复旧配置"
         fi
       else
         ui_print "  ⚠️ 警告：新配置结构异常，无法定位锚点。"
         ui_print "  -> 保留旧版完整配置以防丢失订阅。"
-        cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
+        atomic_replace_config "$OLD_CONFIG" || abort "无法保留旧配置"
       fi
     else
       if [ "$NO_CONFIGURED_PROVIDER" -eq 1 ]; then
@@ -214,7 +331,7 @@ if [ -d "$EXISTING_DIR" ]; then
       else
         ui_print "  ⚠️ 警告：无法从旧配置提取 providers。"
         ui_print "  -> 可能是格式不标准，已保留旧版完整配置。"
-        cp -f "$OLD_CONFIG" "$NEW_CONFIG" 2>/dev/null || abort "无法保留旧配置"
+        atomic_replace_config "$OLD_CONFIG" || abort "无法保留旧配置"
       fi
     fi
 

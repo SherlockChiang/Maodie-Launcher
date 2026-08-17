@@ -53,7 +53,7 @@ Secret：安装或点击模块 action 时会自动生成并写入 `maodie/config
 
 去广告模块支持：https://github.com/SherlockChiang/Adguard-Home-For-Magisk-Mod 目前处于 beta 阶段，欢迎测试。由于上游变动较大，请谨慎测试；目前本模块已经缝合了去广告模块的部分功能。
 
-物理去广告默认关闭。确认清单内容及不可逆的数据删除风险后，可创建空文件 `maodie/config/adblock.enabled` 并重启模块以启用；删除该文件后服务会停止巡检并按实际变更账本解除 immutable。功能会按 `maodie/config/adblock.list` 清空指定广告路径，请不要把重要 App 数据目录加入该清单。
+物理去广告默认关闭。确认清单内容及不可逆的数据删除风险后，可创建空文件 `maodie/config/adblock.enabled` 并重启模块以启用；删除该文件后服务会停止巡检并按实际变更账本解除 immutable。功能只处理清单中的目录目标，普通文件会因无法用纯 Shell 排除符号链接竞态而跳过。目录操作本身仍是尽力防护，纯 Shell 无法提供基于文件描述符的完整竞态隔离，因此只应对可信 App 启用，且不要加入重要数据目录。卸载恢复失败时，独立账本与恢复脚本会保存在 `/data/adb/maodie-launcher-recovery` 并在解锁后自动重试；也可手动执行 `su -c sh /data/adb/maodie-launcher-recovery/recover.sh`。
 
 ## 🤝 鸣谢
 

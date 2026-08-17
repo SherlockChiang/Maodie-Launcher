@@ -1,0 +1,45 @@
+name: Validate Module
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  shell-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Validate Android scripts
+        run: |
+          shellcheck --version
+          bash tests/static.sh
+          bash tests/runtime.sh
+
+      - name: Build and inspect module archive
+        run: |
+          set -euo pipefail
+          bash build.sh
+          version=$(sed -n 's/^version=//p' module.prop | head -n 1)
+          archive="Maodie-Launcher-${version}.zip"
+          test -f "$archive"
+          unzip -t "$archive" >/dev/null
+          unzip -Z1 "$archive" > archive-members.txt
+          for required in \
+            module.prop customize.sh service.sh post-fs-data.sh uninstall.sh action.sh \
+            maodie/kernel/Mihomo maodie/config/config.yaml \
+            maodie/scripts/core.sh maodie/scripts/monitor.sh \
+            maodie/scripts/configctl.sh maodie/scripts/network.sh \
+            maodie/scripts/NoAdsService.sh maodie/scripts/adblock-recovery.sh \
+            maodie/scripts/adblock-recovery-service.sh; do
+            grep -Fxq "$required" archive-members.txt || {
+              echo "Archive is missing required file: $required" >&2
+              exit 1
+            }
+          done

@@ -57,7 +57,7 @@ function Get-Version {
 
 function Get-GitHash {
     try {
-        $hash = & git rev-parse --short HEAD 2>$null
+        $hash = & git -C $ProjectRoot rev-parse --short HEAD 2>$null
         if ($LASTEXITCODE -eq 0) { return $hash }
     } catch {}
     return "local"
@@ -162,7 +162,14 @@ try {
 if (Test-Path $zipPath) {
     $archive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
-        $required = @("module.prop", "customize.sh", "service.sh", "maodie/kernel/Mihomo", "maodie/config/config.yaml")
+        $required = @(
+            "module.prop", "customize.sh", "service.sh", "post-fs-data.sh", "uninstall.sh", "action.sh",
+            "maodie/kernel/Mihomo", "maodie/config/config.yaml",
+            "maodie/scripts/core.sh", "maodie/scripts/monitor.sh",
+            "maodie/scripts/configctl.sh", "maodie/scripts/network.sh",
+            "maodie/scripts/NoAdsService.sh", "maodie/scripts/adblock-recovery.sh",
+            "maodie/scripts/adblock-recovery-service.sh"
+        )
         $entries = @($archive.Entries | ForEach-Object { $_.FullName })
         foreach ($path in $required) {
             if ($entries -notcontains $path) { throw "ZIP 缺少必要文件: $path" }

@@ -1,53 +1,9 @@
 #!/system/bin/sh
 
-MODDIR="$(dirname "$0")"
-CONFIG_FILE="$MODDIR/maodie/config/config.yaml"
+MODDIR="${MAODIE_MOD_DIR:-$(dirname "$0")}"
 CORE_SCRIPT="$MODDIR/maodie/scripts/core.sh"
+CONFIG_SCRIPT="$MODDIR/maodie/scripts/configctl.sh"
 CONTROLLER_URL="http://127.0.0.1:9090"
-
-get_config_secret() {
-    config_path="$1"
-    [ -f "$config_path" ] || return
-    awk '
-        /^[[:space:]]*secret:[[:space:]]*/ {
-            sub(/^[[:space:]]*secret:[[:space:]]*/, "")
-            sub(/[[:space:]]*#.*/, "")
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "")
-            gsub(/^"/, "")
-            gsub(/"$/, "")
-            gsub(/^'\''/, "")
-            gsub(/'\''$/, "")
-            print
-            exit
-        }
-    ' "$config_path"
-}
-
-generate_api_secret() {
-    secret=""
-    if [ -r /proc/sys/kernel/random/uuid ]; then
-        secret=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-')
-    fi
-    if [ -z "$secret" ]; then
-        secret=$(tr -dc 'A-Za-z0-9' < /dev/urandom 2>/dev/null | head -c 32)
-    fi
-    if [ -z "$secret" ]; then
-        secret="$(date +%s)$$"
-    fi
-    printf '%s' "$secret"
-}
-
-set_config_secret() {
-    secret_value="$1"
-    escaped_secret=$(printf '%s' "$secret_value" | sed 's/[|&]/\\&/g')
-    if grep -q '^[[:space:]]*secret:' "$CONFIG_FILE"; then
-        sed -i "s|^[[:space:]]*secret:.*|secret: \"$escaped_secret\"  # action.sh 自动生成；请勿泄露给其他 App|" "$CONFIG_FILE"
-    elif grep -q '^external-controller:' "$CONFIG_FILE"; then
-        sed -i "/^external-controller:/a secret: \"$escaped_secret\"  # action.sh 自动生成；请勿泄露给其他 App" "$CONFIG_FILE"
-    else
-        printf '\nsecret: "%s"  # action.sh 自动生成；请勿泄露给其他 App\n' "$secret_value" >> "$CONFIG_FILE"
-    fi
-}
 
 url_encode() {
     printf '%s' "$1" | sed \
@@ -61,13 +17,28 @@ url_encode() {
         -e 's|/|%2F|g'
 }
 
-secret=$(get_config_secret "$CONFIG_FILE")
-secret_changed=0
-if [ -z "$secret" ]; then
-    secret=$(generate_api_secret)
-    set_config_secret "$secret"
-    secret_changed=1
+if [ ! -f "$CONFIG_SCRIPT" ]; then
+    echo "找不到配置控制脚本。" >&2
+    exit 1
 fi
+
+secret=$(sh "$CONFIG_SCRIPT" ensure-secret --changed-exit-code)
+secret_status=$?
+case "$secret_status" in
+    0) secret_changed=0 ;;
+    10) secret_changed=1 ;;
+    *)
+        echo "无法读取或生成 API secret。" >&2
+        exit "$secret_status"
+        ;;
+esac
+
+case "$secret" in
+    ''|*[!A-Za-z0-9._~-]*)
+        echo "配置控制脚本返回了无效的 API secret。" >&2
+        exit 1
+        ;;
+esac
 
 if [ -x "$CORE_SCRIPT" ]; then
     if [ "$secret_changed" -eq 1 ]; then

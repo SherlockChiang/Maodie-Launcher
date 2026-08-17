@@ -1,42 +1,107 @@
 #!/system/bin/sh
 # Maodie Core - 兼容版 (Android 7.0 - Android 16)
 
-MOD_DIR="/data/adb/modules/Maodie-Launcher"
+umask 077
+
+MOD_DIR="${MAODIE_MOD_DIR:-/data/adb/modules/Maodie-Launcher}"
+export MAODIE_MOD_DIR="$MOD_DIR"
 KERNEL_BIN="$MOD_DIR/maodie/kernel/Mihomo"
 CONFIG_DIR="$MOD_DIR/maodie/config"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 RUN_DIR="$MOD_DIR/maodie/run"
 PID_FILE="$RUN_DIR/kernel.pid"
 LOG_FILE="$RUN_DIR/kernel.log"
+CONFIG_CHECK_LOG="$RUN_DIR/config-start-check.log"
 LOG_MAX_SIZE=524288  # 512KB
 OOM_SCORE_ADJ=${MAODIE_OOM_SCORE_ADJ:--200}
-WAIT_MODE_FILE="$RUN_DIR/iptables_wait.mode"
 LOCK_DIR="$RUN_DIR/core.lock"
 SYSCTL_STATE="$RUN_DIR/sysctl.state"
+NETWORK_SCRIPT="$MOD_DIR/maodie/scripts/network.sh"
+DISABLE_FILE="$MOD_DIR/disable"
+REMOVE_FILE="$MOD_DIR/remove"
+MAINTENANCE_FILE="$RUN_DIR/maintenance"
 
-API_LEVEL=$(getprop ro.build.version.sdk)
+API_LEVEL=$(getprop ro.build.version.sdk 2>/dev/null)
 
 mkdir -p "$RUN_DIR"
 chmod 700 "$RUN_DIR" 2>/dev/null
+chmod 600 "$LOG_FILE" "$LOG_FILE.old" "$CONFIG_CHECK_LOG" \
+    "$PID_FILE" "$SYSCTL_STATE" 2>/dev/null || true
+
+proc_has_arg() {
+    local pid="$1" expected="$2"
+    [ -r "/proc/$pid/cmdline" ] || return 1
+    tr '\000' '\n' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fxq -- "$expected"
+}
 
 kernel_pid_alive() {
     local pid="$1"
     [ -n "$pid" ] || return 1
     kill -0 "$pid" 2>/dev/null || return 1
-    [ -r "/proc/$pid/cmdline" ] && grep -aq "$KERNEL_BIN" "/proc/$pid/cmdline" 2>/dev/null
+    proc_has_arg "$pid" "$KERNEL_BIN" || return 1
+    ! kernel_pid_is_validation "$pid"
+}
+
+kernel_pid_is_validation() {
+    local pid="$1"
+    proc_has_arg "$pid" '-t'
+}
+
+signal_module_cores() {
+    local signal_name="$1"
+    local proc_dir proc_pid found=1
+    for proc_dir in /proc/[0-9]*; do
+        [ -r "$proc_dir/cmdline" ] || continue
+        grep -aFq "$KERNEL_BIN" "$proc_dir/cmdline" 2>/dev/null || continue
+        proc_pid=${proc_dir##*/}
+        proc_has_arg "$proc_pid" "$KERNEL_BIN" || continue
+        kernel_pid_is_validation "$proc_pid" && continue
+        kill "$signal_name" "$proc_pid" 2>/dev/null && found=0
+    done
+    return "$found"
+}
+
+find_module_core_pid() {
+    local proc_dir proc_pid
+    for proc_dir in /proc/[0-9]*; do
+        [ -r "$proc_dir/cmdline" ] || continue
+        grep -aFq "$KERNEL_BIN" "$proc_dir/cmdline" 2>/dev/null || continue
+        proc_pid=${proc_dir##*/}
+        proc_has_arg "$proc_pid" "$KERNEL_BIN" || continue
+        # A concurrent `Mihomo -t` validation is not the long-running core.
+        kernel_pid_is_validation "$proc_pid" && continue
+        kernel_pid_alive "$proc_pid" || continue
+        printf '%s\n' "$proc_pid"
+        return 0
+    done
+    return 1
+}
+
+core_lock_owner_alive() {
+    local owner_pid="$1"
+    [ -n "$owner_pid" ] || return 1
+    kill -0 "$owner_pid" 2>/dev/null || return 1
+    proc_has_arg "$owner_pid" "$MOD_DIR/maodie/scripts/core.sh"
 }
 
 acquire_lock() {
     local attempts=0 old_pid
     while ! mkdir "$LOCK_DIR" 2>/dev/null; do
         old_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null)
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        if core_lock_owner_alive "$old_pid"; then
             attempts=$((attempts + 1))
             [ "$attempts" -ge 15 ] && return 1
             sleep 1
-        else
-            rm -rf "$LOCK_DIR"
+            continue
         fi
+
+        # Avoid stealing a valid lock during its short mkdir -> pid window.
+        if [ -z "$old_pid" ] && [ "$attempts" -lt 2 ]; then
+            attempts=$((attempts + 1))
+            sleep 1
+            continue
+        fi
+        rm -rf "$LOCK_DIR"
     done
     echo $$ > "$LOCK_DIR/pid"
 }
@@ -45,63 +110,38 @@ release_lock() {
     [ "$(cat "$LOCK_DIR/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK_DIR"
 }
 
-rotate_log() {
-    if [ -f "$LOG_FILE" ]; then
-        local size=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
-        if [ "$size" -gt "$LOG_MAX_SIZE" ]; then
-            mv -f "$LOG_FILE" "${LOG_FILE}.old"
-        fi
+copy_log_tail() {
+    local source_file="$1" destination_file="$2"
+    local tail_tmp="$RUN_DIR/.kernel.log.tail.$$"
+    if ! tail -c "$LOG_MAX_SIZE" "$source_file" > "$tail_tmp" 2>/dev/null; then
+        rm -f "$tail_tmp" 2>/dev/null
+        return 1
     fi
+    chmod 600 "$tail_tmp" 2>/dev/null
+    mv -f "$tail_tmp" "$destination_file"
 }
 
-detect_iptables_wait() {
-    # 记忆化：单次脚本调用内最多探测一次，并跨 reapply 调用缓存探测结果。
-    [ -n "$IPT_WAIT_DETECTED" ] && return
-    IPT_WAIT_DETECTED=1
-
-    if [ -f "$WAIT_MODE_FILE" ]; then
-        local cached_mode=$(cat "$WAIT_MODE_FILE" 2>/dev/null)
-        case "$cached_mode" in
-            interval)
-                IPT_WAIT="-w 2"
-                IPV6_WAIT="-w 2"
-                return
-                ;;
-            wait)
-                IPT_WAIT=""
-                IPV6_WAIT=""
-                return
-                ;;
-            none)
-                IPT_WAIT=""
-                IPV6_WAIT=""
-                return
-                ;;
-        esac
-    fi
-
-    local wait_mode
-    if iptables --help 2>/dev/null | grep -q "wait"; then
-        if iptables --help 2>/dev/null | grep -q "wait interval"; then
-            IPT_WAIT="-w 2"
-            IPV6_WAIT="-w 2"
-            wait_mode="interval"
-        elif iptables -w 2 -L >/dev/null 2>&1; then
-            IPT_WAIT="-w 2"
-            IPV6_WAIT="-w 2"
-            wait_mode="interval"
-        else
-            IPT_WAIT=""
-            IPV6_WAIT=""
-            wait_mode="wait"
+rotate_log() {
+    local size old_size
+    if [ -f "$LOG_FILE" ]; then
+        size=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
+        if [ "$size" -gt "$LOG_MAX_SIZE" ]; then
+            if copy_log_tail "$LOG_FILE" "${LOG_FILE}.old"; then
+                : > "$LOG_FILE"
+            else
+                mv -f "$LOG_FILE" "${LOG_FILE}.old"
+            fi
         fi
-    else
-        IPT_WAIT=""
-        IPV6_WAIT=""
-        wait_mode="none"
-        echo "Info: 当前系统 iptables 不支持等待锁，已降级运行。" >> "$LOG_FILE"
     fi
-    echo "$wait_mode" > "$WAIT_MODE_FILE" 2>/dev/null
+
+    # Older versions could leave a multi-megabyte rotated log indefinitely.
+    if [ -f "${LOG_FILE}.old" ]; then
+        old_size=$(wc -c < "${LOG_FILE}.old" 2>/dev/null || echo 0)
+        if [ "$old_size" -gt "$LOG_MAX_SIZE" ]; then
+            copy_log_tail "${LOG_FILE}.old" "${LOG_FILE}.old" || true
+        fi
+    fi
+    chmod 600 "$LOG_FILE" "${LOG_FILE}.old" 2>/dev/null || true
 }
 
 safe_sysctl() {
@@ -118,7 +158,21 @@ safe_sysctl() {
     echo "$val" > "$file" 2>/dev/null
 }
 
+safe_sysctl_min() {
+    local minimum="$1"
+    local file="$2"
+    local current
+    [ -f "$file" ] || return
+    current=$(cat "$file" 2>/dev/null) || return
+    case "$current:$minimum" in
+        *[!0-9:]*) return ;;
+    esac
+    [ "$current" -ge "$minimum" ] 2>/dev/null && return
+    safe_sysctl "$minimum" "$file"
+}
+
 restore_tuning() {
+    local file original applied current
     [ -f "$SYSCTL_STATE" ] || return
     while IFS='|' read -r file original applied; do
         [ -f "$file" ] || continue
@@ -138,68 +192,80 @@ apply_tuning() {
         safe_sysctl 0 "$file"
     done
 
-    safe_sysctl 65536 /proc/sys/net/netfilter/nf_conntrack_max
-    safe_sysctl 8388608 /proc/sys/net/core/wmem_max
-    safe_sysctl 8388608 /proc/sys/net/core/rmem_max
+    # Capacity knobs are lower bounds only. Never reduce a larger OEM value.
+    safe_sysctl_min 65536 /proc/sys/net/netfilter/nf_conntrack_max
+    safe_sysctl_min 8388608 /proc/sys/net/core/wmem_max
+    safe_sysctl_min 8388608 /proc/sys/net/core/rmem_max
 }
 
-apply_iptables() {
-    detect_iptables_wait
-    local failed=0
+network_apply() {
+    [ -r "$NETWORK_SCRIPT" ] || {
+        echo "Error: Network controller missing: $NETWORK_SCRIPT" >> "$LOG_FILE"
+        return 1
+    }
+    sh "$NETWORK_SCRIPT" apply >> "$LOG_FILE" 2>&1
+}
 
-    iptables $IPT_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null || iptables $IPT_WAIT -I FORWARD -i "utun+" -j ACCEPT || failed=1
-    iptables $IPT_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null || iptables $IPT_WAIT -I FORWARD -o "utun+" -j ACCEPT || failed=1
+network_clear() {
+    [ -r "$NETWORK_SCRIPT" ] || return 1
+    sh "$NETWORK_SCRIPT" clear >> "$LOG_FILE" 2>&1
+}
 
-    iptables $IPT_WAIT -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null || iptables $IPT_WAIT -t mangle -I PREROUTING -m mark --mark 2022 -j RETURN || failed=1
-
-    if [ -f /proc/net/if_inet6 ]; then
-        ip6tables $IPV6_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null || ip6tables $IPV6_WAIT -I FORWARD -i "utun+" -j ACCEPT
-        ip6tables $IPV6_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null || ip6tables $IPV6_WAIT -I FORWARD -o "utun+" -j ACCEPT
+validate_config() {
+    if "$KERNEL_BIN" -t -d "$CONFIG_DIR" -f "$CONFIG_FILE" > "$CONFIG_CHECK_LOG" 2>&1; then
+        chmod 600 "$CONFIG_CHECK_LOG" 2>/dev/null
+        return 0
     fi
 
-    if [ "$failed" -ne 0 ]; then
-        echo "Error: Failed to apply required IPv4 iptables rules." >> "$LOG_FILE"
+    chmod 600 "$CONFIG_CHECK_LOG" 2>/dev/null
+    echo "Error: Mihomo rejected the active configuration." >> "$LOG_FILE"
+    tail -n 20 "$CONFIG_CHECK_LOG" >> "$LOG_FILE" 2>/dev/null
+    return 1
+}
+
+inactive_reason() {
+    if [ -f "$MAINTENANCE_FILE" ]; then
+        printf 'maintenance\n'
+    elif [ -f "$REMOVE_FILE" ]; then
+        printf 'scheduled removal\n'
+    elif [ -f "$DISABLE_FILE" ]; then
+        printf 'module disabled\n'
+    else
         return 1
     fi
-    echo "iptables rules applied." >> "$LOG_FILE"
-}
-
-clear_iptables() {
-    detect_iptables_wait
-
-    while iptables $IPT_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null; do
-        iptables $IPT_WAIT -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null || break
-    done
-    while iptables $IPT_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null; do
-        iptables $IPT_WAIT -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null || break
-    done
-    while iptables $IPT_WAIT -t mangle -C PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null; do
-        iptables $IPT_WAIT -t mangle -D PREROUTING -m mark --mark 2022 -j RETURN 2>/dev/null || break
-    done
-
-    if [ -f /proc/net/if_inet6 ]; then
-        while ip6tables $IPV6_WAIT -C FORWARD -i "utun+" -j ACCEPT 2>/dev/null; do
-            ip6tables $IPV6_WAIT -D FORWARD -i "utun+" -j ACCEPT 2>/dev/null || break
-        done
-        while ip6tables $IPV6_WAIT -C FORWARD -o "utun+" -j ACCEPT 2>/dev/null; do
-            ip6tables $IPV6_WAIT -D FORWARD -o "utun+" -j ACCEPT 2>/dev/null || break
-        done
-    fi
-
-    echo "iptables rules cleared." >> "$LOG_FILE"
 }
 
 is_running() {
+    local pid pid_tmp
     if [ -f "$PID_FILE" ]; then
-        local pid=$(cat "$PID_FILE" 2>/dev/null)
+        pid=$(cat "$PID_FILE" 2>/dev/null)
         kernel_pid_alive "$pid" && return 0
         # PID 文件存在但进程已死或 PID 被复用，清理残留
         rm -f "$PID_FILE"
     fi
+
+    # Recover from a lost PID file before starting another core instance.
+    pid=$(find_module_core_pid) || return 1
+    pid_tmp="$PID_FILE.tmp.$$"
+    if printf '%s\n' "$pid" > "$pid_tmp" 2>/dev/null; then
+        chmod 600 "$pid_tmp" 2>/dev/null
+        if mv -f "$pid_tmp" "$PID_FILE" 2>/dev/null; then
+            echo "Recovered running core PID: $pid" >> "$LOG_FILE"
+            return 0
+        fi
+    fi
+    rm -f "$pid_tmp" 2>/dev/null
     return 1
 }
 
 start() {
+    local blocked_reason
+    if blocked_reason=$(inactive_reason); then
+        echo "Refusing to start core: $blocked_reason." >> "$LOG_FILE"
+        stop >/dev/null 2>&1
+        return 1
+    fi
+
     if is_running; then
         echo "Maodie Core is already running (PID: $(cat "$PID_FILE"))."
         return
@@ -215,8 +281,17 @@ start() {
         return 1
     fi
 
+    if [ ! -r "$NETWORK_SCRIPT" ]; then
+        echo "Error: Network controller not found: $NETWORK_SCRIPT" | tee -a "$LOG_FILE"
+        return 1
+    fi
+
     rotate_log
     echo "--- Starting Maodie (Time: $(date)) ---" >> "$LOG_FILE"
+
+    # Validate every start. Manual edits and upgrade migrations do not pass
+    # through configctl.sh, so its write-time validation is not sufficient.
+    validate_config || return 1
 
     apply_tuning
 
@@ -224,11 +299,12 @@ start() {
 
     nohup "$KERNEL_BIN" -d "$CONFIG_DIR" -f "$CONFIG_FILE" >> "$LOG_FILE" 2>&1 &
     PID=$!
-    echo $PID > "$PID_FILE"
+    echo "$PID" > "$PID_FILE"
+    chmod 600 "$PID_FILE" 2>/dev/null
 
     # 等待短暂时间确认进程存活
     sleep 1
-    if ! kill -0 $PID 2>/dev/null; then
+    if ! kill -0 "$PID" 2>/dev/null; then
         echo "Error: Kernel exited immediately. Check log for details." | tee -a "$LOG_FILE"
         rm -f "$PID_FILE"
         restore_tuning
@@ -239,7 +315,7 @@ start() {
         echo "$OOM_SCORE_ADJ" > /proc/$PID/oom_score_adj 2>/dev/null
     fi
 
-    if ! apply_iptables; then
+    if ! network_apply; then
         kill -15 "$PID" 2>/dev/null
         wait=0
         while [ "$wait" -lt 3 ] && kernel_pid_alive "$PID"; do
@@ -248,7 +324,7 @@ start() {
         done
         kernel_pid_alive "$PID" && kill -9 "$PID" 2>/dev/null
         rm -f "$PID_FILE"
-        clear_iptables
+        network_clear >/dev/null 2>&1
         restore_tuning
         return 1
     fi
@@ -257,33 +333,62 @@ start() {
 }
 
 stop() {
+    local wait=0 network_status=0
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE" 2>/dev/null)
         if kernel_pid_alive "$PID"; then
-            kill -15 $PID 2>/dev/null
+            kill -15 "$PID" 2>/dev/null
 
-            local wait=0
-            while [ $wait -lt 3 ] && kill -0 $PID 2>/dev/null; do
+            while [ "$wait" -lt 3 ] && kill -0 "$PID" 2>/dev/null; do
                 sleep 1
                 wait=$((wait + 1))
             done
 
             if kernel_pid_alive "$PID"; then
-                kill -9 $PID 2>/dev/null
+                kill -9 "$PID" 2>/dev/null
                 echo "Warning: Core didn't stop gracefully, force killed." >> "$LOG_FILE"
             fi
         fi
-        rm -f "$PID_FILE"
-    else
-        # 无 PID 文件时，仅清理本模块核心，避免误伤其它 Mihomo 实例。
-        pkill -15 -f "$KERNEL_BIN" 2>/dev/null
+    fi
+    rm -f "$PID_FILE"
+
+    # Always perform the path-scoped orphan cleanup. A stale/reused PID file
+    # must not suppress cleanup of another instance started by this module.
+    if signal_module_cores -15; then
         sleep 2
-        pkill -9 -f "$KERNEL_BIN" 2>/dev/null
+        signal_module_cores -9 >/dev/null 2>&1
     fi
 
-    clear_iptables
+    network_clear || network_status=$?
     restore_tuning
     echo "--- Core stopped (Time: $(date)) ---" >> "$LOG_FILE"
+    return "$network_status"
+}
+
+restart() {
+    local blocked_reason
+    if blocked_reason=$(inactive_reason); then
+        echo "Refusing to restart core: $blocked_reason." >> "$LOG_FILE"
+        stop >/dev/null 2>&1
+        return 1
+    fi
+
+    # Preserve a currently healthy in-memory configuration when a manual
+    # disk edit is invalid. Validate before terminating the running process.
+    if is_running; then
+        if [ ! -x "$KERNEL_BIN" ] || [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: Restart preflight files are missing; current core kept running." >> "$LOG_FILE"
+            return 1
+        fi
+        if ! validate_config; then
+            echo "Error: Restart aborted; current core kept running." >> "$LOG_FILE"
+            return 1
+        fi
+    fi
+
+    stop >/dev/null 2>&1
+    sleep 1
+    start
 }
 
 status() {
@@ -294,15 +399,22 @@ status() {
     fi
 }
 
-# 幂等地重铺系统调优与 iptables 规则（不重启内核）。
+# 幂等地重铺系统调优与模块专属防火墙规则（不重启内核）。
 # 用于看门狗在 system_server 运行时重启、netd 冲掉规则后自愈。
-# apply_tuning / apply_iptables 本身幂等（sysctl 同值写入、iptables -C || -I），
-# 规则在位时为空操作；临时静音日志避免每 30s 刷屏 kernel.log。
 reapply() {
-    local old_log="$LOG_FILE"
-    LOG_FILE=/dev/null
-    apply_iptables
-    LOG_FILE="$old_log"
+    local blocked_reason
+    if blocked_reason=$(inactive_reason); then
+        echo "Refusing to reapply network state: $blocked_reason." >> "$LOG_FILE"
+        stop >/dev/null 2>&1
+        return 1
+    fi
+
+    apply_tuning
+    if network_apply; then
+        return 0
+    fi
+    echo "Error: Failed to reapply network rules." >> "$LOG_FILE"
+    return 1
 }
 
 case "$1" in
@@ -318,7 +430,7 @@ esac
 case "$1" in
     start)   start ;;
     stop)    stop ;;
-    restart) stop; sleep 1; start ;;
+    restart) restart ;;
     reapply) reapply ;;
     status)  status ;;
     *)       echo "Usage: $0 {start|stop|restart|reapply|status}"; exit 1 ;;
