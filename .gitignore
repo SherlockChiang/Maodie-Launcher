@@ -10,3 +10,4 @@ logcat*.txt
 ps_output.txt
 pstore*.txt
 debug_crash*.sh
+/scratch

@@ -149,14 +149,14 @@ proxy-groups:
   - name: 美国
     type: url-test
     include-all: true
-    filter: "(?i)(美国|美國|united states|usa|\\bus\\b)"
+    filter: "(?i)(美国|美國|united states|us|\\bus\\b)"
     tolerance: 100
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/US.png"
   
   - name: AI
     type: select
     include-all: true
-    filter: "(?i)(美国|美國|united states|usa|\\bus\\b)"
+    filter: "(?i)(美国|美國|united states|us|\\bus\\b)"
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Bot.png"
 
   - name: 手动切换
@@ -169,8 +169,6 @@ proxy-groups:
 # 分流规则
 rules:
   # - DST-PORT,53,DNS_Hijack
-  - DOMAIN-SUFFIX,googleapis.cn,Google
-  - DOMAIN-SUFFIX,xn--ngstr-lra8j.com,Google
   - RULE-SET,ad,REJECT
 
   # 大陆/私有 UDP 优先直连，避免不支持 UDP 的代理节点继续下探到泛规则
@@ -179,6 +177,7 @@ rules:
   - AND,((NETWORK,UDP),(RULE-SET,private_ip)),直连
   - AND,((NETWORK,UDP),(RULE-SET,cn_ip)),直连
 
+  - RULE-SET,google_domain,Google
   - RULE-SET,private_domain,直连
   - RULE-SET,cn_domain,直连
 
@@ -186,7 +185,6 @@ rules:
   - RULE-SET,google_fcm,Google_fcm
   - RULE-SET,github_domain,Github
   - RULE-SET,microsoft_domain,Microsoft
-  - RULE-SET,google_domain,Google
   - RULE-SET,telegram_domain,Telegram
 
   - RULE-SET,private_ip,直连,no-resolve
