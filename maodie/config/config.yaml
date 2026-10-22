@@ -103,7 +103,7 @@ proxy-groups:
 
   - name: Google
     type: select
-    proxies: [默认, 香港, 日本, 美国, 手动切换]
+    proxies: [默认, 香港, 日本, 美国, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Google_Search.png"
   
   - name: Google_fcm
@@ -113,12 +113,12 @@ proxy-groups:
 
   - name: Telegram
     type: select
-    proxies: [默认, 香港, 日本, 美国, 手动切换]
+    proxies: [默认, 香港, 日本, 美国, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Telegram.png"
 
   - name: Github
     type: select
-    proxies: [默认, 香港, 日本, 美国, 手动切换]
+    proxies: [默认, 香港, 日本, 美国, 手动切换, 直连]
     icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/mini/Server.png"
 
   - name: Microsoft
