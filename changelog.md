@@ -1,7 +1,7 @@
-🎨 **面板更新**
-- 版本: v1.276.0
+📦 **手动发布**
+- 版本: v20261123-45151308101-1
+- 基础 Commit: e08c83c
 
 ### 📝 变更日志 (Changelog):
-- (No new commits)
-
-📌 **Release Tag**: v20261122-44989605117-1
+- chore: reduce Mihomo log verbosity (e08c83c)
+- fix: clear proxy connections after uplink changes (1d36adf)
