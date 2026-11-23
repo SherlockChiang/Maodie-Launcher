@@ -12,6 +12,7 @@ MOD_DIR="${MAODIE_MOD_DIR:-/data/adb/modules/Maodie-Launcher}"
 export MAODIE_MOD_DIR="$MOD_DIR"
 CORE_SCRIPT="$MOD_DIR/maodie/scripts/core.sh"
 NETWORK_SCRIPT="$MOD_DIR/maodie/scripts/network.sh"
+CONFIG_FILE="$MOD_DIR/maodie/config/config.yaml"
 KERNEL_BIN="$MOD_DIR/maodie/kernel/Mihomo"
 RUN_DIR="$MOD_DIR/maodie/run"
 PID_FILE="$RUN_DIR/kernel.pid"
@@ -23,6 +24,8 @@ LOG="$RUN_DIR/monitor.log"
 LOG_MAX=262144          # 256KB
 KERNEL_LOG="$RUN_DIR/kernel.log"
 KERNEL_LOG_MAX=${MAODIE_KERNEL_LOG_MAX:-524288}
+UPLINK_STATE="$RUN_DIR/uplink.state"
+MAODIE_API_URL=${MAODIE_API_URL:-http://127.0.0.1:9090}
 CHECK_INTERVAL=${MAODIE_CHECK_INTERVAL:-60}
 MAX_BACKOFF=${MAODIE_MAX_BACKOFF:-900}
 SYSTEM_SERVER_STATE="$RUN_DIR/system_server.start_count"
@@ -37,7 +40,7 @@ case "$KERNEL_LOG_MAX" in *[!0-9]*|'') KERNEL_LOG_MAX=524288 ;; esac
 mkdir -p "$RUN_DIR"
 chmod 700 "$RUN_DIR" 2>/dev/null
 chmod 600 "$LOG" "$LOG.old" "$KERNEL_LOG" "$KERNEL_LOG.old" \
-    "$SYSTEM_SERVER_STATE" 2>/dev/null || true
+    "$SYSTEM_SERVER_STATE" "$UPLINK_STATE" 2>/dev/null || true
 
 proc_has_arg() {
     check_pid="$1"
@@ -96,6 +99,92 @@ log() {
     fi
     echo "$(date '+%m-%d %H:%M:%S'): $1" >> "$LOG"
     chmod 600 "$LOG" 2>/dev/null
+}
+
+read_api_secret() {
+    [ -r "$CONFIG_FILE" ] || return 0
+    awk '
+        /^secret:[[:space:]]*/ {
+            value = $0
+            sub(/^secret:[[:space:]]*/, "", value)
+            sub(/[[:space:]][[:space:]]*#.*/, "", value)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+            first = substr(value, 1, 1)
+            last = substr(value, length(value), 1)
+            single_quote = sprintf("%c", 39)
+            if ((first == "\"" && last == "\"") ||
+                (first == single_quote && last == single_quote)) {
+                value = substr(value, 2, length(value) - 2)
+            }
+            print value
+            exit
+        }
+    ' "$CONFIG_FILE" 2>/dev/null
+}
+
+current_uplink() {
+    dumpsys connectivity 2>/dev/null | awk '
+        /Active default network:/ {
+            default_id = $NF
+            next
+        }
+        default_id != "" && $0 ~ "NetworkAgentInfo\\{network\\{" default_id "\\}" {
+            in_default = 1
+        }
+        in_default && /InterfaceName:/ {
+            interface = $0
+            sub(/^.*InterfaceName: /, "", interface)
+            sub(/[[:space:]].*$/, "", interface)
+            if (interface != "") {
+                print default_id "|" interface
+            }
+            exit
+        }
+    '
+}
+
+clear_mihomo_connections() {
+    api_secret=$(read_api_secret)
+    if ! command -v curl >/dev/null 2>&1; then
+        log "Uplink changed, but curl is unavailable; Mihomo connections were not cleared."
+        return 1
+    fi
+
+    if [ -n "$api_secret" ]; then
+        curl -fsS --max-time 5 -X DELETE \
+            -H "Authorization: Bearer $api_secret" \
+            "$MAODIE_API_URL/connections" >/dev/null 2>&1
+    else
+        curl -fsS --max-time 5 -X DELETE \
+            "$MAODIE_API_URL/connections" >/dev/null 2>&1
+    fi
+}
+
+handle_uplink_change() {
+    current=$(current_uplink)
+    [ -n "$current" ] || return 0
+
+    boot_id=$(current_boot_id)
+    previous=$(cat "$UPLINK_STATE" 2>/dev/null)
+    previous_boot=""
+    previous_uplink=""
+    saved_ifs=$IFS
+    IFS='|'
+    read -r previous_boot previous_uplink <<EOF
+$previous
+EOF
+    IFS=$saved_ifs
+
+    if [ "$previous_boot" = "$boot_id" ] &&
+        [ -n "$previous_uplink" ] && [ "$previous_uplink" != "$current" ]; then
+        log "Physical uplink changed: $previous_uplink -> $current; clearing Mihomo connections."
+        if ! clear_mihomo_connections; then
+            log "Failed to clear Mihomo connections after physical uplink change."
+        fi
+    fi
+
+    printf '%s|%s\n' "$boot_id" "$current" > "$UPLINK_STATE" 2>/dev/null
+    chmod 600 "$UPLINK_STATE" 2>/dev/null
 }
 
 trim_kernel_log() {
@@ -269,6 +358,7 @@ while :; do
             fi
             route_failures=0
         else
+            handle_uplink_change
             route_failures=0
             start_failures=0
         fi
