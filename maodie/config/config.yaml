@@ -2,7 +2,7 @@ mixed-port: 7890
 allow-lan: false
 bind-address: 127.0.0.1
 mode: rule 
-log-level: info 
+log-level: warning
 ipv6: true
 unified-delay: true
 tcp-concurrent: true
