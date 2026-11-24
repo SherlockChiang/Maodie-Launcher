@@ -177,6 +177,12 @@ rules:
   - AND,((NETWORK,UDP),(RULE-SET,private_ip)),直连
   - AND,((NETWORK,UDP),(RULE-SET,cn_ip)),直连
 
+  # Gemini 应用通过 Google App 使用的后端域名不一定包含在 google.mrs 或 ai_domain 中。
+  # 放在通用 Google/海外规则之前，确保这些端点使用专用 AI 节点。
+  - DOMAIN-SUFFIX,robinfrontend-pa.googleapis.com,AI
+  - DOMAIN-SUFFIX,signaler-pa.googleapis.com,AI
+  - DOMAIN-SUFFIX,gemini.google.com,AI
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,AI
   - RULE-SET,google_domain,Google
   - RULE-SET,private_domain,直连
   - RULE-SET,cn_domain,直连
