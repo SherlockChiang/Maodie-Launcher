@@ -1,7 +1,7 @@
 id=Maodie-Launcher
 name=Maodie Launcher
-version=v20261127-45956063112-1
-versionCode=1795763136
+version=v20261127-45988103447-1
+versionCode=1795777774
 author=Maodie
 description=基于 Mihomo 的 ARM64 TUN 代理启动器；接管系统 DNS/路由，物理去广告默认关闭。
 updateJson=https://raw.githubusercontent.com/SherlockChiang/Maodie-Launcher/main/update.json
