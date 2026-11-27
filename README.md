@@ -45,6 +45,8 @@ WebUI 访问：
 Secret：安装或点击模块 action 时会自动生成并写入 `maodie/config/config.yaml`。action 会通过 MetaCubeXD 的本机 setup 链接完成首次认证；该链接包含 secret，仅应在可信浏览器中打开，不要分享链接或 secret。控制端口只监听 `127.0.0.1`。
 
 ## 🚦 特别需知
+地区分组节点策略：默认配置中的地区分组（香港 / 日本 / 美国）使用 `select`（手动选择）而非 `url-test`。由于基于 QUIC 的 Hysteria2 等协议在测速时几乎总是最快，`url-test` 会持续优先选中它们，而实测 Hysteria2 在手机端容易导致基带耗电过高；因此改为手动在 MetaCubeXD 中按需选点。
+
 由于上游issue：https://github.com/MetaCubeX/mihomo/issues/1362
 
 如果您使用的是flyme系统，请直接用box4magisk模块
