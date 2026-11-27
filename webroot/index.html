@@ -324,7 +324,7 @@
             const timer = setTimeout(() => {
                 delete window[callbackName];
                 reject(new Error('操作超时，请稍后重试'));
-            }, 30000);
+            }, 45000);
             window[callbackName] = (errno, stdout, stderr) => {
                 clearTimeout(timer);
                 delete window[callbackName];
@@ -337,16 +337,25 @@
         const LOG_FILE = '/data/adb/modules/Maodie-Launcher/webroot/history.log';
         const CORE_SCRIPT = '/data/adb/modules/Maodie-Launcher/maodie/scripts/core.sh';
         const CONFIG_SCRIPT = '/data/adb/modules/Maodie-Launcher/maodie/scripts/configctl.sh';
+        const ACTION_SCRIPT = '/data/adb/modules/Maodie-Launcher/action.sh';
 
         const execChecked = async (command, options = {}) => {
             const result = await exec(command, options);
             if (result.errno !== 0) {
-                throw new Error(result.stderr.trim() || `命令执行失败 (${result.errno})`);
+                throw new Error(result.stderr.trim() || result.stdout.trim() || `命令执行失败 (${result.errno})`);
             }
             return result;
         };
 
         const restartKernel = () => execChecked(`sh ${CORE_SCRIPT} restart`);
+        const openMetaCubeXD = () => execChecked(`sh ${ACTION_SCRIPT}`);
+        const openMetaCubeXDWithNotice = async () => {
+            try {
+                await openMetaCubeXD();
+            } catch (error) {
+                snackbar(`内核已重启，但打开 MetaCubeXD 失败：${error.message || '请手动点击模块 Action'}`);
+            }
+        };
 
         const $ = (id) => document.getElementById(id);
         const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
@@ -469,8 +478,8 @@
       - 127.0.0.1:5591`;
 
         const fetchConfigText = async () => {
-            const { errno, stdout } = await exec(`cat ${CONFIG_FILE} | base64 -w 0`);
-            return (errno === 0 && stdout) ? b64_to_utf8(stdout.trim()) : "";
+            const { errno, stdout } = await exec(`base64 "${CONFIG_FILE}" | tr -d '\r\n'`);
+            return (errno === 0 && stdout) ? b64_to_utf8(stdout.replace(/\s+/g, '')) : "";
         };
 
         const saveConfigText = async (text) => {
@@ -542,7 +551,7 @@
             let dnsInserted = false;
 
             for (const line of lines) {
-                if (line === 'dns:' || line.startsWith('dns: ')) {
+                if (/^dns:[ \t]*(#.*)?$/.test(line)) {
                     inDnsBlock = true;
                     if (!dnsInserted) {
                         newLines.push(newBlock);
@@ -568,16 +577,28 @@
             await saveConfigText(newLines.join('\n'));
             await appendHistory(`DNS切换: 成功变更为 ${modeLabel} 模式`);
             await restartKernel();
-            snackbar("DNS已切换，内核自动重启中");
             await checkDnsState();
             await loadHistory();
+            snackbar("DNS已切换，内核已重启，正在打开 MetaCubeXD");
+            await openMetaCubeXDWithNotice();
         };
 
         const getProviderUrl = (text, provider) => {
             const regex = new RegExp(`(^[ \\t]*${provider}:[\\s\\S]*?^[ \\t]*url:[ \\t]*)(.*)$`, 'm');
             const match = text.match(regex);
             if (!match) return '';
-            return match[2].trim().split('#')[0].trim().replace(/^["']|["']$/g, '');
+            const raw = match[2].trim();
+            if (raw.startsWith('"')) {
+                const quoted = raw.match(/^"((?:\\.|[^"\\])*)"/);
+                if (quoted) {
+                    try { return JSON.parse(`"${quoted[1]}"`); } catch (_) { return quoted[1]; }
+                }
+            }
+            if (raw.startsWith("'")) {
+                const singleQuoted = raw.match(/^'((?:''|[^'])*)'/);
+                if (singleQuoted) return singleQuoted[1].replace(/''/g, "'");
+            }
+            return raw.split(/\s+#/)[0].trim().replace(/^["']|["']$/g, '');
         };
 
         const updateProviderUrl = (text, provider, newUrl) => {
@@ -611,7 +632,20 @@
             applyDnsState(configText);
         };
 
+        let busy = false;
+        const actionButtons = () => [
+            $('btnDnsFirstTime'),
+            $('btnDnsDefault'),
+            $('btnDnsAGH'),
+            $('saveBtn'),
+            $('refreshBtn'),
+            $('clearLogBtn')
+        ];
+
         const runAction = async (btn, action) => {
+            if (busy) return;
+            busy = true;
+            actionButtons().forEach((el) => { if (el) el.disabled = true; });
             setLoading(btn, true);
             try {
                 await action();
@@ -619,6 +653,8 @@
                 snackbar(error.message || "操作失败");
             } finally {
                 setLoading(btn, false);
+                actionButtons().forEach((el) => { if (el) el.disabled = false; });
+                busy = false;
             }
         };
 
@@ -681,11 +717,13 @@
                     await appendHistory(`成功更新 ${updatedCount} 个 provider`);
                     await appendHistory(`执行内核重启`);
                     await restartKernel();
-                    snackbar("保存成功，内核已重启");
+                    await loadHistory();
+                    snackbar("保存成功，内核已重启，正在打开 MetaCubeXD");
+                    await openMetaCubeXDWithNotice();
                 } else {
                     snackbar("未检测到链接变更");
+                    await loadHistory();
                 }
-                await loadHistory();
             });
         });
 
