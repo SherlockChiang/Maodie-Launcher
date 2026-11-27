@@ -43,7 +43,7 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 [ -n "$candidate" ] || exit 2
-grep -q 'INVALID_CONFIG' "$candidate" 2>/dev/null && exit 1
+grep -q 'INVALID_CONFIG' "$candidate" 2>/dev/null && { printf 'invalid config stdout detail\n'; exit 1; }
 exit 0
 SH
 chmod 700 "$TEST_ROOT/maodie/kernel/Mihomo"
@@ -83,10 +83,13 @@ grep -Fxq 'marker: applied' "$TEST_ROOT/maodie/config/config.yaml" || fail 'vali
 
 printf '%s\n' 'INVALID_CONFIG' > "$TEST_ROOT/invalid.yaml"
 invalid_payload=$(base64 < "$TEST_ROOT/invalid.yaml" | tr -d '\n')
-if MAODIE_MOD_DIR="$TEST_ROOT" sh "$ROOT_DIR/maodie/scripts/configctl.sh" \
-    apply-base64 "$invalid_payload" >/dev/null 2>&1; then
+invalid_stderr=""
+if invalid_stderr=$(MAODIE_MOD_DIR="$TEST_ROOT" sh "$ROOT_DIR/maodie/scripts/configctl.sh" \
+    apply-base64 "$invalid_payload" 2>&1 >/dev/null); then
   fail 'invalid config was accepted'
 fi
+grep -Fq 'invalid config stdout detail' <<<"$invalid_stderr" \
+  || fail 'configctl.sh did not surface Mihomo stdout validation details'
 grep -Fxq 'marker: applied' "$TEST_ROOT/maodie/config/config.yaml" \
   || fail 'invalid update changed the active config'
 
@@ -202,5 +205,32 @@ printf '%s\n' '/data/data/invalid.example/cache/missing' > "$RECOVERY_STATE"
 MAODIE_ASSUME_USER_UNLOCKED=1 MAODIE_ADBLOCK_STATE="$RECOVERY_STATE" \
   sh "$ROOT_DIR/maodie/scripts/adblock-recovery.sh" >/dev/null
 [[ ! -e "$RECOVERY_STATE" ]] || fail 'standalone recovery did not clear a missing target'
+
+ACTION_ROOT="$TEST_ROOT/action"
+mkdir -p "$ACTION_ROOT/maodie/config" "$ACTION_ROOT/maodie/kernel" \
+  "$ACTION_ROOT/maodie/run" "$ACTION_ROOT/maodie/scripts"
+cp "$TEST_ROOT/before-apply.yaml" "$ACTION_ROOT/maodie/config/config.yaml"
+cp "$TEST_ROOT/maodie/kernel/Mihomo" "$ACTION_ROOT/maodie/kernel/Mihomo"
+cp "$ROOT_DIR/maodie/scripts/configctl.sh" "$ACTION_ROOT/maodie/scripts/configctl.sh"
+cat > "$ACTION_ROOT/maodie/scripts/core.sh" <<'SH'
+#!/bin/sh
+printf 'core:%s\n' "$1" >> "$MAODIE_MOD_DIR/maodie/run/action.calls"
+exit 0
+SH
+chmod 700 "$ACTION_ROOT/maodie/scripts/core.sh" "$ACTION_ROOT/maodie/scripts/configctl.sh"
+AM_LOG="$TEST_ROOT/am.log"
+cat > "$MOCK_BIN/am" <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >> "$MAODIE_TEST_AM_LOG"
+exit 0
+SH
+chmod 700 "$MOCK_BIN/am"
+: > "$AM_LOG"
+PATH="$MOCK_BIN:$PATH" MAODIE_TEST_AM_LOG="$AM_LOG" MAODIE_MOD_DIR="$ACTION_ROOT" \
+  sh "$ROOT_DIR/action.sh" --restart >/dev/null
+grep -Fxq 'core:restart' "$ACTION_ROOT/maodie/run/action.calls" \
+  || fail 'action.sh --restart did not restart core'
+grep -Fq 'http://127.0.0.1:9090/ui/#/setup?hostname=127.0.0.1&port=9090&http=1&secret=' "$AM_LOG" \
+  || fail 'action.sh did not open MetaCubeXD setup URL'
 
 printf 'Runtime tests passed.\n'

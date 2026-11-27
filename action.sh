@@ -40,8 +40,33 @@ case "$secret" in
         ;;
 esac
 
+FORCE_RESTART=0
+case "${1:-}" in
+    '') ;;
+    --restart) FORCE_RESTART=1 ;;
+    *)
+        echo "未知参数: $1" >&2
+        exit 1
+        ;;
+esac
+
+wait_controller_ready() {
+    local secret_val="$1" tries=0
+    command -v curl >/dev/null 2>&1 || return 0
+    while [ "$tries" -lt 4 ]; do
+        if curl -fsS --max-time 1 \
+            -H "Authorization: Bearer $secret_val" \
+            "$CONTROLLER_URL/version" >/dev/null 2>&1; then
+            return 0
+        fi
+        tries=$((tries + 1))
+        sleep 1
+    done
+    return 0
+}
+
 if [ -x "$CORE_SCRIPT" ]; then
-    if [ "$secret_changed" -eq 1 ]; then
+    if [ "$FORCE_RESTART" -eq 1 ] || [ "$secret_changed" -eq 1 ]; then
         core_action=restart
     else
         core_action=start
@@ -56,12 +81,14 @@ else
     exit 1
 fi
 
+wait_controller_ready "$secret"
+
 # MetaCubeXD 的 setup 路由会保存首次连接信息；直接打开 /ui/ 无法稳定补录 secret。
 secret_query=$(url_encode "$secret")
 URL="$CONTROLLER_URL/ui/#/setup?hostname=127.0.0.1&port=9090&http=1&secret=${secret_query}"
 
-if ! am start -a android.intent.action.VIEW -d "$URL" --user 0 >/dev/null 2>&1 \
-    && ! am start -a android.intent.action.VIEW -d "$URL" >/dev/null 2>&1; then
+if ! am start -a android.intent.action.VIEW -d "$URL" --user 0 </dev/null >/dev/null 2>&1 \
+    && ! am start -a android.intent.action.VIEW -d "$URL" </dev/null >/dev/null 2>&1; then
     echo "无法打开浏览器，请手动访问 $URL" >&2
     exit 1
 fi

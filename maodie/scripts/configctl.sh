@@ -245,7 +245,7 @@ validate_config() {
     candidate="$1"
     validation_status=0
     "$KERNEL_BIN" -t -d "$CONFIG_DIR" -f "$candidate" \
-        0<&- 9>&- >/dev/null 2>"$CHECK_LOG_TMP" || validation_status=$?
+        </dev/null >"$CHECK_LOG_TMP" 2>&1 || validation_status=$?
 
     chmod 600 "$CHECK_LOG_TMP" 2>/dev/null
     mv -f "$CHECK_LOG_TMP" "$CHECK_LOG" 2>/dev/null || true
