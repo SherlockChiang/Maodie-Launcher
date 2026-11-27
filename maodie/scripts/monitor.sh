@@ -218,6 +218,25 @@ mihomo_alive() {
     ! proc_has_arg "$pid" '-t'
 }
 
+# 若 Mihomo 因外部调用落入 App cgroup（会被 Android Freezer 冻结），将其迁回根 cgroup。
+ensure_mihomo_root_cgroup() {
+    [ -f "$PID_FILE" ] || return 0
+    pid=$(cat "$PID_FILE" 2>/dev/null)
+    [ -n "$pid" ] && [ -r "/proc/$pid/cgroup" ] || return 0
+    if grep -Eq '(::/apps/|:/background$)' "/proc/$pid/cgroup" 2>/dev/null; then
+        for cg_file in \
+            /sys/fs/cgroup/cgroup.procs \
+            /dev/cpuctl/cgroup.procs \
+            /dev/cpuset/cgroup.procs \
+            /dev/blkio/cgroup.procs \
+            /dev/freezer/cgroup.procs \
+            /acct/tasks; do
+            [ -w "$cg_file" ] && printf '%s\n' "$pid" > "$cg_file" 2>/dev/null || true
+        done
+        log "Detected Mihomo (PID $pid) inside an app/background cgroup; moved back to root cgroup."
+    fi
+}
+
 read_system_server_start_count() {
     getprop sys.system_server.start_count 2>/dev/null
 }
@@ -358,6 +377,7 @@ while :; do
             fi
             route_failures=0
         else
+            ensure_mihomo_root_cgroup
             handle_uplink_change
             route_failures=0
             start_failures=0

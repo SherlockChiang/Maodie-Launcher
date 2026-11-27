@@ -47,34 +47,56 @@ kernel_pid_is_validation() {
     proc_has_arg "$pid" '-t'
 }
 
+list_module_core_pids() {
+    local match_file proc_pid
+    for match_file in $(grep -aFl -- "$KERNEL_BIN" /proc/[0-9]*/cmdline 2>/dev/null); do
+        proc_pid=${match_file#/proc/}
+        proc_pid=${proc_pid%/cmdline}
+        case "$proc_pid" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        proc_has_arg "$proc_pid" "$KERNEL_BIN" || continue
+        # A concurrent `Mihomo -t` validation is not the long-running core.
+        kernel_pid_is_validation "$proc_pid" && continue
+        printf '%s\n' "$proc_pid"
+    done
+}
+
 signal_module_cores() {
     local signal_name="$1"
-    local proc_dir proc_pid found=1
-    for proc_dir in /proc/[0-9]*; do
-        [ -r "$proc_dir/cmdline" ] || continue
-        grep -aFq "$KERNEL_BIN" "$proc_dir/cmdline" 2>/dev/null || continue
-        proc_pid=${proc_dir##*/}
-        proc_has_arg "$proc_pid" "$KERNEL_BIN" || continue
-        kernel_pid_is_validation "$proc_pid" && continue
+    local proc_pid found=1
+    for proc_pid in $(list_module_core_pids); do
         kill "$signal_name" "$proc_pid" 2>/dev/null && found=0
     done
     return "$found"
 }
 
 find_module_core_pid() {
-    local proc_dir proc_pid
-    for proc_dir in /proc/[0-9]*; do
-        [ -r "$proc_dir/cmdline" ] || continue
-        grep -aFq "$KERNEL_BIN" "$proc_dir/cmdline" 2>/dev/null || continue
-        proc_pid=${proc_dir##*/}
-        proc_has_arg "$proc_pid" "$KERNEL_BIN" || continue
-        # A concurrent `Mihomo -t` validation is not the long-running core.
-        kernel_pid_is_validation "$proc_pid" && continue
+    local proc_pid
+    for proc_pid in $(list_module_core_pids); do
         kernel_pid_alive "$proc_pid" || continue
         printf '%s\n' "$proc_pid"
         return 0
     done
     return 1
+}
+
+# Processes launched from KernelSU/APatch WebUI inherit the manager app's
+# cgroup (including Android's cgroup v2 freezer and background cpu/blkio
+# slices). Move the Mihomo daemon back to the root cgroup so leaving the
+# manager or opening MetaCubeXD in a browser cannot freeze or kill the core.
+escape_app_cgroup() {
+    local target_pid="$1" cg_file
+    [ -n "$target_pid" ] || return 0
+    for cg_file in \
+        /sys/fs/cgroup/cgroup.procs \
+        /dev/cpuctl/cgroup.procs \
+        /dev/cpuset/cgroup.procs \
+        /dev/blkio/cgroup.procs \
+        /dev/freezer/cgroup.procs \
+        /acct/tasks; do
+        [ -w "$cg_file" ] && printf '%s\n' "$target_pid" > "$cg_file" 2>/dev/null || true
+    done
 }
 
 core_lock_owner_alive() {
@@ -212,7 +234,7 @@ network_clear() {
 }
 
 validate_config() {
-    if "$KERNEL_BIN" -t -d "$CONFIG_DIR" -f "$CONFIG_FILE" > "$CONFIG_CHECK_LOG" 2>&1; then
+    if "$KERNEL_BIN" -t -d "$CONFIG_DIR" -f "$CONFIG_FILE" </dev/null > "$CONFIG_CHECK_LOG" 2>&1; then
         chmod 600 "$CONFIG_CHECK_LOG" 2>/dev/null
         return 0
     fi
@@ -220,6 +242,8 @@ validate_config() {
     chmod 600 "$CONFIG_CHECK_LOG" 2>/dev/null
     echo "Error: Mihomo rejected the active configuration." >> "$LOG_FILE"
     tail -n 20 "$CONFIG_CHECK_LOG" >> "$LOG_FILE" 2>/dev/null
+    echo "Error: Mihomo rejected the active configuration." >&2
+    tail -n 10 "$CONFIG_CHECK_LOG" >&2 2>/dev/null
     return 1
 }
 
@@ -259,30 +283,33 @@ is_running() {
 }
 
 start() {
-    local blocked_reason
+    local blocked_reason skip_validate="${1:-0}"
     if blocked_reason=$(inactive_reason); then
         echo "Refusing to start core: $blocked_reason." >> "$LOG_FILE"
+        echo "Refusing to start core: $blocked_reason." >&2
         stop >/dev/null 2>&1
         return 1
     fi
 
     if is_running; then
-        echo "Maodie Core is already running (PID: $(cat "$PID_FILE"))."
+        PID=$(cat "$PID_FILE" 2>/dev/null)
+        escape_app_cgroup "$PID"
+        echo "Maodie Core is already running (PID: $PID)."
         return
     fi
 
     if [ ! -x "$KERNEL_BIN" ]; then
-        echo "Error: Kernel binary not found or not executable: $KERNEL_BIN" | tee -a "$LOG_FILE"
+        echo "Error: Kernel binary not found or not executable: $KERNEL_BIN" | tee -a "$LOG_FILE" >&2
         return 1
     fi
 
     if [ ! -f "$CONFIG_FILE" ]; then
-        echo "Error: Config file not found: $CONFIG_FILE" | tee -a "$LOG_FILE"
+        echo "Error: Config file not found: $CONFIG_FILE" | tee -a "$LOG_FILE" >&2
         return 1
     fi
 
     if [ ! -r "$NETWORK_SCRIPT" ]; then
-        echo "Error: Network controller not found: $NETWORK_SCRIPT" | tee -a "$LOG_FILE"
+        echo "Error: Network controller not found: $NETWORK_SCRIPT" | tee -a "$LOG_FILE" >&2
         return 1
     fi
 
@@ -291,31 +318,51 @@ start() {
 
     # Validate every start. Manual edits and upgrade migrations do not pass
     # through configctl.sh, so its write-time validation is not sufficient.
-    validate_config || return 1
+    if [ "$skip_validate" != "1" ]; then
+        validate_config || return 1
+    fi
 
     apply_tuning
 
     ulimit -n 65536 2>/dev/null
 
-    nohup "$KERNEL_BIN" -d "$CONFIG_DIR" -f "$CONFIG_FILE" >> "$LOG_FILE" 2>&1 &
+    # Detach completely from caller stdin/extra FDs and session so KernelSU
+    # WebUI exec() never hangs waiting for inherited pipes to close.
+    if command -v setsid >/dev/null 2>&1; then
+        setsid "$KERNEL_BIN" -d "$CONFIG_DIR" -f "$CONFIG_FILE" \
+            </dev/null >> "$LOG_FILE" 2>&1 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
+    else
+        nohup "$KERNEL_BIN" -d "$CONFIG_DIR" -f "$CONFIG_FILE" \
+            </dev/null >> "$LOG_FILE" 2>&1 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
+    fi
     PID=$!
+    escape_app_cgroup "$PID"
     echo "$PID" > "$PID_FILE"
     chmod 600 "$PID_FILE" 2>/dev/null
 
-    # 等待短暂时间确认进程存活
+    # 等待短暂时间确认进程存活（若 setsid 发生 fork，则回收真实内核 PID）
     sleep 1
-    if ! kill -0 "$PID" 2>/dev/null; then
-        echo "Error: Kernel exited immediately. Check log for details." | tee -a "$LOG_FILE"
+    if ! kernel_pid_alive "$PID"; then
+        PID=$(find_module_core_pid) || PID=""
+        if [ -n "$PID" ]; then
+            echo "$PID" > "$PID_FILE"
+            chmod 600 "$PID_FILE" 2>/dev/null
+        fi
+    fi
+    if ! kernel_pid_alive "$PID"; then
+        echo "Error: Kernel exited immediately. Check log for details." | tee -a "$LOG_FILE" >&2
         rm -f "$PID_FILE"
         restore_tuning
         return 1
     fi
 
+    escape_app_cgroup "$PID"
     if [ -f /proc/$PID/oom_score_adj ]; then
         echo "$OOM_SCORE_ADJ" > /proc/$PID/oom_score_adj 2>/dev/null
     fi
 
     if ! network_apply; then
+        echo "Error: Failed to apply network rules for Mihomo." | tee -a "$LOG_FILE" >&2
         kill -15 "$PID" 2>/dev/null
         wait=0
         while [ "$wait" -lt 3 ] && kernel_pid_alive "$PID"; do
@@ -366,9 +413,10 @@ stop() {
 }
 
 restart() {
-    local blocked_reason
+    local blocked_reason prevalidated=0
     if blocked_reason=$(inactive_reason); then
         echo "Refusing to restart core: $blocked_reason." >> "$LOG_FILE"
+        echo "Refusing to restart core: $blocked_reason." >&2
         stop >/dev/null 2>&1
         return 1
     fi
@@ -378,17 +426,19 @@ restart() {
     if is_running; then
         if [ ! -x "$KERNEL_BIN" ] || [ ! -f "$CONFIG_FILE" ]; then
             echo "Error: Restart preflight files are missing; current core kept running." >> "$LOG_FILE"
+            echo "Error: Restart preflight files are missing; current core kept running." >&2
             return 1
         fi
         if ! validate_config; then
             echo "Error: Restart aborted; current core kept running." >> "$LOG_FILE"
             return 1
         fi
+        prevalidated=1
     fi
 
     stop >/dev/null 2>&1
     sleep 1
-    start
+    start "$prevalidated"
 }
 
 status() {
